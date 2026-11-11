@@ -27,6 +27,8 @@ import com.streaming.music.exception.GlobalExceptionHandler;
 import com.streaming.music.exception.InvalidAudioFormatException;
 import com.streaming.music.exception.InvalidRequestException;
 import com.streaming.music.exception.TrackNotFoundException;
+import com.streaming.music.security.JwtTokenProvider;
+import com.streaming.music.security.RestAuthenticationEntryPoint;
 import com.streaming.music.service.MediaUrlResolver;
 import com.streaming.music.service.TrackService;
 import java.time.Instant;
@@ -48,9 +50,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @WebMvcTest(controllers = TrackController.class)
-@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, RestAuthenticationEntryPoint.class, GlobalExceptionHandler.class})
 @ActiveProfiles({"local", "test"})
 class TrackControllerTest {
+
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
     private MockMvc mockMvc;

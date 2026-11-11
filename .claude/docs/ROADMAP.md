@@ -434,16 +434,19 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - **보안 확인(기록):** `verifyWith`만으로는 키가 충분히 길면 같은 키로 서명한 HS384/HS512 토큰도 통과하므로, 파싱 후 헤더 알고리즘이 정확히 HS256인지 명시적으로 확인한다. 68바이트 키로 서명한 HS512 토큰이 거부됨을 테스트로 확인했다. `alg=none`·서명 없는 토큰·다른 키 서명·payload 변조도 모두 거부된다.
   - **Jackson 공존 확인(기록, T0-1 이관 항목):** `jjwt-jackson 0.12.6`(jackson-databind 2.21.7)과 Boot의 Jackson 3(`tools.jackson`)가 클래스패스에 함께 있는 상태에서 실제 토큰 생성·파싱 왕복이 통과했다. 충돌 없음.
 
-### [ ] T6-2 JWT 필터·`/api/auth/me`·Security 확정
+### [x] T6-2 JWT 필터·`/api/auth/me`·Security 확정
 - **목표:** `JwtAuthenticationFilter`(무효 토큰은 익명 통과), `RestAuthenticationEntryPoint`(401 공통 JSON), `AuthController`, `SecurityConfig`에서 `/api/auth/me`만 인증 필수.
 - **선행:** T6-1, T1-3, T0-5
 - **완료 조건:**
-  - [ ] `@WebMvcTest`: 유효 토큰 → `200 UserResponse{userId,email,profileImageUrl,role}`
-  - [ ] 토큰 없음/무효 → `401 UNAUTHORIZED` JSON(리다이렉트 없음)
-  - [ ] 무효 토큰으로 `/api/tracks`는 차단되지 않음
-  - [ ] `UserService`(또는 조회 서비스) 단위 테스트: 존재하지 않는 userId → 401 처리 경로
-  - [ ] `./gradlew test` 통과
+  - [x] `@WebMvcTest`: 유효 토큰 → `200 UserResponse{userId,email,profileImageUrl,role}`
+  - [x] 토큰 없음/무효 → `401 UNAUTHORIZED` JSON(리다이렉트 없음)
+  - [x] 무효 토큰으로 `/api/tracks`는 차단되지 않음
+  - [x] `UserService`(또는 조회 서비스) 단위 테스트: 존재하지 않는 userId → 401 처리 경로
+  - [x] `./gradlew test` 통과
 - **주의:** [계획] 필터가 `UserDetails` 대신 어떤 Principal을 넣을지(userId `Long`) 결정 — 이후 T6-7에서 재사용
+  - **결정(기록):** principal은 `AuthenticatedUser(Long userId, String role)` record이며 `UsernamePasswordAuthenticationToken(principal, null, [SimpleGrantedAuthority(role)])`로 `SecurityContext`에 넣는다. **T6-7은 컨트롤러에서 `@AuthenticationPrincipal AuthenticatedUser`로 받으면 된다**(익명 요청의 principal은 문자열 `"anonymousUser"`라 타입 불일치로 `null`이 주입되어 "토큰 없음 → `null` 전달"과 그대로 맞는다). 필터는 `@Component`가 아니라 `SecurityConfig`에서 `new`로 생성해 `addFilterBefore(UsernamePasswordAuthenticationFilter)`로 등록한다(서블릿 컨테이너 이중 등록 방지). 토큰이 없거나 무효이거나 Bearer 형식이 아니면(예: Basic) 아무것도 설정하지 않고 익명 통과, 이미 인증이 있으면 덮어쓰지 않는다. 401은 `RestAuthenticationEntryPoint`(Boot `JsonMapper`)가 `ErrorResponse(UNAUTHORIZED)` JSON으로 응답하며 리다이렉트·`WWW-Authenticate`가 없다. `AccessDeniedHandler`는 ROLE 기반 제어가 없어 두지 않았다. 유효 토큰이지만 회원이 DB에 없으면 `UserService.getUser`가 `UnauthorizedException`(`BusinessException` 하위)을 던져 `GlobalExceptionHandler`(무수정)가 401 JSON으로 처리한다.
+  - **확인(기록):** `STATELESS`의 `SecurityContextHolderFilter`가 요청 종료 시 컨텍스트를 정리해 인증이 요청 간에 새지 않음을 연속 요청 테스트(`notLeakAuthenticationBetweenRequests`)로 증명했다. `MVC GlobalExceptionHandler`가 만든 401은 `Content-Type: application/json`(charset 없음), `EntryPoint` 응답은 `application/json;charset=UTF-8`이며 키(code/message/timestamp)와 code·message는 같다.
+  - **T6-5 회귀 항목(기록):** `oauth2Login`을 추가하면 `/api/**`의 기본 인증 진입점이 로그인 페이지 리다이렉트로 바뀔 수 있다. T6-5에서 `oauth2Login` 추가 후에도 미인증 `/api/auth/me`가 여전히 **401 JSON(리다이렉트 없음)** 인지 확인하는 회귀 테스트를 반드시 추가한다.
 
 ### [ ] T6-3 쿠키 기반 인가 요청 저장소
 - **목표:** `HttpCookieOAuth2AuthorizationRequestRepository` — 인가 요청과 `redirect_uri`를 쿠키(`oauth2_auth_request`, `oauth2_redirect_uri`; HttpOnly, Path=/, Max-Age=180, SameSite=Lax)에 저장한다.
@@ -481,6 +484,7 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [ ] 실패 핸들러가 `?error={code}`로 리다이렉트
   - [ ] `./gradlew test` 통과
 - **주의:** [검토] Open Redirect 방지 — 완전 일치(scheme·host·port·path), `musicapp://` 커스텀 스킴 URI 파싱 동작
+  - [검토] **T6-2 이관 회귀:** `oauth2Login`을 `SecurityConfig`에 추가한 뒤에도 미인증 `GET /api/auth/me`가 로그인 페이지 리다이렉트가 아니라 `401 UNAUTHORIZED` JSON을 반환하는지 확인하는 `@WebMvcTest`(또는 통합) 회귀 테스트를 추가한다(`exceptionHandling.authenticationEntryPoint`를 명시했는데도 `oauth2Login`이 `/api/**`의 진입점을 바꾸지 않는지 확인).
 
 ### [ ] T6-6 CORS 설정
 - **목표:** `app.cors.allowed-origins`가 비어 있으면 CORS 비활성, 값이 있으면 해당 오리진에 한해 `GET, POST, OPTIONS`와 `Authorization`, `Content-Type` 허용(`allowCredentials=false`).

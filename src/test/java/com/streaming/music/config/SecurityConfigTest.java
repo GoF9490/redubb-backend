@@ -5,7 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.streaming.music.security.JwtTokenProvider;
+import com.streaming.music.security.RestAuthenticationEntryPoint;
 import java.util.List;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +24,12 @@ import org.springframework.test.web.servlet.MvcResult;
  * 필터 체인이 실제로 적용된 상태(addFilters 기본값)에서 SecurityConfig를 검증한다.
  */
 @WebMvcTest(controllers = SecurityTestController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, RestAuthenticationEntryPoint.class})
 @ActiveProfiles({"local", "test"})
 class SecurityConfigTest {
+
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
     private MockMvc mockMvc;

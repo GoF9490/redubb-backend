@@ -1,6 +1,7 @@
 package com.streaming.music.service;
 
 import com.streaming.music.entity.User;
+import com.streaming.music.exception.UnauthorizedException;
 import com.streaming.music.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -25,6 +26,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final Clock clock;
+
+    /**
+     * userId로 회원을 조회한다. 존재하지 않으면(삭제된 회원 등) 401 처리용 예외를 던진다.
+     */
+    public User getUser(Long userId) {
+        return userRepository.findById(userId).orElseThrow(UnauthorizedException::new);
+    }
 
     /**
      * providerId(sub) 기준으로 회원을 갱신하거나, 없으면 신규 생성한다.

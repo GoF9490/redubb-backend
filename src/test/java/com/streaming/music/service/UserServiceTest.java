@@ -1,12 +1,15 @@
 package com.streaming.music.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.entity.User;
+import com.streaming.music.exception.ErrorCode;
+import com.streaming.music.exception.UnauthorizedException;
 import com.streaming.music.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -44,6 +47,26 @@ class UserServiceTest {
                 .createdAt(OLD)
                 .lastLoginAt(OLD)
                 .build();
+    }
+
+    @Test
+    @DisplayName("존재하는 userId는 회원을 반환한다")
+    void getExistingUser() {
+        User user = createExistingUser();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        assertThat(userService.getUser(1L)).isSameAs(user);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 userId는 UnauthorizedException(401)을 던진다")
+    void throwUnauthorizedWhenUserMissing() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getUser(99L))
+                .isInstanceOf(UnauthorizedException.class)
+                .extracting(e -> ((UnauthorizedException) e).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
     }
 
     @Test
