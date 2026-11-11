@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: music
+  h2:
+    console:
+      enabled: true # 웹 콘솔 활성화 (접속 주소: http://localhost:8080/h2-console)
+      path: /h2-console
+  datasource:
+    url: jdbc:h2:mem:testdb # 인메모리 DB 모드
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
