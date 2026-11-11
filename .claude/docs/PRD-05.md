@@ -141,6 +141,7 @@ dependencies {
     // 3. Database (운영: PostgreSQL / 로컬: H2 인메모리)
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.h2database:h2")
+    runtimeOnly("org.springframework.boot:spring-boot-h2console") // Boot 4부터 H2 웹 콘솔 자동설정이 별도 모듈로 분리됨 (local 프로파일 /h2-console 용)
 
     // 4. S3 Object Storage Client (RustFS 100% 호환)
     implementation("io.minio:minio:8.5.14")

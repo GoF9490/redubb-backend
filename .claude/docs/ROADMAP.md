@@ -36,13 +36,13 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [탐색] Boot 4 BOM이 관리하는 OkHttp 버전과 minio 8.5.x 요구 버전 충돌 여부(PRD.md §7.1)
   - [검토] `jjwt-jackson`(Jackson 2)과 Boot 4 기본 Jackson 3가 공존해도 기동에 문제 없는지
 
-### [ ] T0-2 `application.yaml` 프로파일 구성
+### [x] T0-2 `application.yaml` 프로파일 구성
 - **목표:** PRD-05 §4.2대로 공통 / `local`(H2, `MODE=PostgreSQL`) / `prod`(PostgreSQL, `validate`) 설정을 구성하고 테스트용 더미 값을 둔다.
 - **선행:** T0-1
 - **완료 조건:**
-  - [ ] `contextLoads`가 더미 환경값(`src/test/resources/application-test.yaml` 등)으로 통과
-  - [ ] `local` 프로파일 기동 시 `/h2-console` 경로 활성, `open-in-view=false` 확인(테스트로 검증)
-  - [ ] 시크릿 값이 저장소 파일에 평문으로 없음(`${...}` 주입만)
+  - [x] `contextLoads`가 더미 환경값(`src/test/resources/application-test.yaml` 등)으로 통과
+  - [x] `local` 프로파일 기동 시 `/h2-console` 경로 활성, `open-in-view=false` 확인(테스트로 검증)
+  - [x] 시크릿 값이 저장소 파일에 평문으로 없음(`${...}` 주입만)
 - **주의:**
   - [탐색] `GOOGLE_CLIENT_ID` 등 필수 환경변수 미주입 시 기동 실패 → 테스트 프로파일에서 더미 주입
   - [구현] 기존 `application.yaml`의 H2 설정(`testdb`)을 `streaming_db`로 교체
