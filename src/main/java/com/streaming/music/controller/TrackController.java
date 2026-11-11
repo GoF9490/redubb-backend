@@ -1,6 +1,7 @@
 package com.streaming.music.controller;
 
 import com.streaming.music.dto.request.TrackUploadRequest;
+import com.streaming.music.dto.response.StreamPlayResponse;
 import com.streaming.music.dto.response.TrackPageResponse;
 import com.streaming.music.dto.response.TrackResponse;
 import com.streaming.music.entity.Track;
@@ -63,6 +64,12 @@ public class TrackController {
     @GetMapping("/{trackId}")
     public TrackResponse getTrack(@PathVariable UUID trackId) {
         return TrackResponse.from(trackService.getTrack(trackId), mediaUrlResolver);
+    }
+
+    /** 재생 진입점 조회. READY가 아니면 409, 없으면 404. 성공 시 STREAM 이력이 기록된다. */
+    @GetMapping("/{trackId}/play")
+    public StreamPlayResponse getPlayInfo(@PathVariable UUID trackId) {
+        return trackService.getPlayInfo(trackId, resolveUserId());
     }
 
     /**

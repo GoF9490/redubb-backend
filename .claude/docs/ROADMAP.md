@@ -384,17 +384,19 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 - **주의:** [검토] `status` 파라미터가 잘못된 enum 값일 때 `400 INVALID_REQUEST`
   - **확인(기록):** 실행으로 확인 — `status=FOO`·소문자 `ready`·`page=abc`·`size=abc`는 400 `INVALID_REQUEST`(enum 변환은 대소문자 구분이며 그대로 둔다). `status=`/`keyword=`(빈 값)는 400이 아니라 서비스에 `status=null`, `keyword=""`로 전달된다. `size=500`은 컨트롤러가 보정하지 않고 서비스에 전달(보정은 서비스 책임). `GET /api/tracks/upload`는 UUID 변환 실패로 400. 목록 응답은 키 정확히 6개, 상세는 11개 필드(`errorMessage` 미노출), `createdAt`은 `Z` 포함 ISO-8601.
 
-### [ ] T5-3 재생 진입점
+### [x] T5-3 재생 진입점
 - **목표:** `getPlayInfo`와 `GET /api/tracks/{id}/play` (`READY` 검증, `409`, `STREAM` 이력).
 - **선행:** T5-1, T1-4
 - **완료 조건:**
-  - [ ] `TrackServiceTest` 재생 ①: `PROCESSING`/`PENDING`/`FAILED` → `TrackNotReadyException`
-  - [ ] `READY` → `StreamPlayResponse(trackId,streamUrl,title,artist,durationSeconds,artworkUrl)` 반환
-  - [ ] 성공 시 `PlaybackLogService`가 `STREAM`으로 1회 호출, 실패 시 호출 없음
-  - [ ] 컨트롤러 `@WebMvcTest`: `200`/`409`/`404`
-  - [ ] `./gradlew test` 통과
+  - [x] `TrackServiceTest` 재생 ①: `PROCESSING`/`PENDING`/`FAILED` → `TrackNotReadyException`
+  - [x] `READY` → `StreamPlayResponse(trackId,streamUrl,title,artist,durationSeconds,artworkUrl)` 반환
+  - [x] 성공 시 `PlaybackLogService`가 `STREAM`으로 1회 호출, 실패 시 호출 없음
+  - [x] 컨트롤러 `@WebMvcTest`: `200`/`409`/`404`
+  - [x] `./gradlew test` 통과
+  - **구현 메모(기록):** `getPlayInfo(UUID, Long userId)`는 조회(404) → `READY` 검증(409) → 응답 조립 → `recordLog(STREAM)`(마지막) 순서이며 `@Transactional`을 두지 않는다(읽기 전용 트랜잭션 안에서 `REQUIRES_NEW`를 호출하면 요청당 커넥션 2개를 동시에 점유해 풀 고갈 위험). `READY`인데 `hlsPlaylistKey`가 null이면 경고 로그 후 409. `TrackService` 생성자 끝에 `MediaUrlResolver`·`PlaybackLogService`가 추가되었고 T5-4가 그대로 재사용한다. 컨트롤러는 `resolveUserId()`(T6-7 교체 지점)를 사용한다.
 - **주의:** [검토] 이력 기록 실패가 응답을 막지 않는지(T1-4와 연동)
   - [검토] `PlaybackLogService`가 `TransactionTemplate`(REQUIRES_NEW)로 동작하므로, 호출자(`TrackService`)가 `readOnly` 트랜잭션이어도 이력이 저장되고 저장 실패 시 `UnexpectedRollbackException`이 나지 않는지 `@SpringBootTest`(H2) 통합 테스트로 확인한다(Mockito로는 검증 불가).
+    - **확인(기록, `PlayInfoIntegrationTest`):** 익명(`user=null`)·로그인(`user` 연결) `STREAM` 이력이 실제로 저장된다. `readOnly` `TransactionTemplate` 안에서 `recordLog`를 호출해도 이력이 저장되고 커밋 시 예외가 없다. 존재하지 않는 `userId`(`getReferenceById` → FK 위반)에서도 `getPlayInfo`는 정상 응답하고 이력은 0건이며 `UnexpectedRollbackException`은 발생하지 않는다(readOnly 안에서도 동일). 통합 테스트 DB는 `ddl-auto=update`라 `ON DELETE CASCADE`가 없어 기반 클래스가 `PlaybackLog`를 먼저 삭제한다.
 
 ### [ ] T5-4 원본 다운로드 지시
 - **목표:** `getDownloadInfo`와 `GET /api/tracks/{id}/download` — presigned URL을 `X-Accel-Redirect`로 변환하고 RFC 5987 `Content-Disposition`을 구성한다.

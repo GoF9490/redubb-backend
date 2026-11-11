@@ -53,6 +53,10 @@ class TrackQueryServiceTest {
     private AudioProperties audioProperties;
     @Mock
     private PlatformTransactionManager transactionManager;
+    @Mock
+    private MediaUrlResolver mediaUrlResolver;
+    @Mock
+    private PlaybackLogService playbackLogService;
 
     private TrackService trackService;
 
@@ -60,7 +64,8 @@ class TrackQueryServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-03-05T10:00:00Z"), ZoneOffset.UTC);
         trackService = new TrackService(storageService, audioMetadataValidator, transcodeTaskDispatcher,
-                trackRepository, userRepository, audioProperties, clock, transactionManager);
+                trackRepository, userRepository, audioProperties, clock, transactionManager,
+                mediaUrlResolver, playbackLogService);
     }
 
     private Page<Track> emptyPage() {

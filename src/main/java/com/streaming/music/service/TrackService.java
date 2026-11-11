@@ -3,12 +3,15 @@ package com.streaming.music.service;
 import com.streaming.music.config.properties.AudioProperties;
 import com.streaming.music.dto.event.TranscodeEventDto;
 import com.streaming.music.dto.request.TrackUploadRequest;
+import com.streaming.music.dto.response.StreamPlayResponse;
+import com.streaming.music.entity.ActionType;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
 import com.streaming.music.entity.User;
 import com.streaming.music.exception.InvalidArtworkException;
 import com.streaming.music.exception.InvalidRequestException;
 import com.streaming.music.exception.TrackNotFoundException;
+import com.streaming.music.exception.TrackNotReadyException;
 import com.streaming.music.repository.LikePatternEscaper;
 import com.streaming.music.repository.TrackRepository;
 import com.streaming.music.repository.UserRepository;
@@ -77,6 +80,8 @@ public class TrackService {
     private final AudioProperties audioProperties;
     private final Clock clock;
     private final TransactionTemplate transactionTemplate;
+    private final MediaUrlResolver mediaUrlResolver;
+    private final PlaybackLogService playbackLogService;
 
     public TrackService(StorageService storageService,
                         AudioMetadataValidator audioMetadataValidator,
@@ -85,7 +90,11 @@ public class TrackService {
                         UserRepository userRepository,
                         AudioProperties audioProperties,
                         Clock clock,
-                        PlatformTransactionManager transactionManager) {
+                        PlatformTransactionManager transactionManager,
+                        MediaUrlResolver mediaUrlResolver,
+                        PlaybackLogService playbackLogService) {
+        this.mediaUrlResolver = mediaUrlResolver;
+        this.playbackLogService = playbackLogService;
         this.storageService = storageService;
         this.audioMetadataValidator = audioMetadataValidator;
         this.transcodeTaskDispatcher = transcodeTaskDispatcher;
@@ -208,6 +217,33 @@ public class TrackService {
     public Track getTrack(UUID trackId) {
         return trackRepository.findById(trackId)
                 .orElseThrow(() -> new TrackNotFoundException("트랙을 찾을 수 없습니다. trackId=" + trackId));
+    }
+
+    /**
+     * 재생 진입점 정보를 반환하고 STREAM 이력을 기록한다 (PRD-05 §7.1, §7.1.3).
+     *
+     * <p>순서: 조회(없으면 404) → READY 검증(아니면 409) → 응답 조립 → 이력 기록(마지막).
+     * 실패 경로에서는 이력을 기록하지 않는다.
+     *
+     * <p><b>트랜잭션:</b> 이 메서드에는 {@code @Transactional}을 두지 않는다. 조회는 repository 트랜잭션에서
+     * 수행되고, 이력 호출은 어떤 트랜잭션에도 속하지 않는다(요청당 커넥션 동시 점유 방지).
+     * 응답에 쓰는 Track 필드는 모두 스칼라이며 uploader(LAZY)는 접근하지 않으므로 detached여도 안전하다.
+     * 이력 저장 실패는 {@link PlaybackLogService}가 삼키므로 응답에 영향이 없다.
+     *
+     * @param userId 인증 사용자 ID (비로그인이면 null)
+     */
+    public StreamPlayResponse getPlayInfo(UUID trackId, Long userId) {
+        Track track = getTrack(trackId);
+        if (track.getStatus() != TrackStatus.READY) {
+            throw new TrackNotReadyException();
+        }
+        if (track.getHlsPlaylistKey() == null) {
+            log.warn("READY 트랙에 HLS 플레이리스트 키가 없습니다. trackId={}", trackId);
+            throw new TrackNotReadyException();
+        }
+        StreamPlayResponse response = StreamPlayResponse.from(track, mediaUrlResolver);
+        playbackLogService.recordLog(track, userId, ActionType.STREAM);
+        return response;
     }
 
     private Track saveTrackAndDispatch(UUID trackId, Long userId, AudioMetadata metadata, String originalFilename,

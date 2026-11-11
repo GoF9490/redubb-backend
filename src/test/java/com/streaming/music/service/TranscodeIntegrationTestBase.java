@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import com.streaming.music.dto.event.TranscodeEventDto;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
+import com.streaming.music.repository.PlaybackLogRepository;
 import com.streaming.music.repository.TrackRepository;
 import com.streaming.music.repository.UserRepository;
 import java.io.IOException;
@@ -55,6 +56,9 @@ abstract class TranscodeIntegrationTestBase {
     protected UserRepository userRepository;
 
     @Autowired
+    protected PlaybackLogRepository playbackLogRepository;
+
+    @Autowired
     protected TransactionTemplate transactionTemplate;
 
     @Autowired
@@ -93,6 +97,8 @@ abstract class TranscodeIntegrationTestBase {
     void cleanUpAfterEach() {
         releaseBlockedThreads();
         waitUntilExecutorIdle();
+        // 재생 이력은 Track/User를 FK로 참조하므로 먼저 지운다(ON DELETE CASCADE 없음)
+        playbackLogRepository.deleteAll();
         trackRepository.deleteAllById(createdTrackIds);
         userRepository.deleteAllById(createdUserIds);
         createdTrackIds.clear();
@@ -119,6 +125,16 @@ abstract class TranscodeIntegrationTestBase {
     protected UUID savePendingTrack() {
         UUID trackId = UUID.randomUUID();
         trackRepository.save(buildPendingTrack(trackId));
+        createdTrackIds.add(trackId);
+        return trackId;
+    }
+
+    /** 재생 가능한 READY 트랙을 저장한다. */
+    protected UUID saveReadyTrack() {
+        UUID trackId = UUID.randomUUID();
+        Track track = buildPendingTrack(trackId);
+        track.markReady("stream/" + trackId + "/index.m3u8");
+        trackRepository.save(track);
         createdTrackIds.add(trackId);
         return trackId;
     }

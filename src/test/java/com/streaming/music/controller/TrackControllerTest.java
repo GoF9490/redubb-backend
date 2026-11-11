@@ -16,8 +16,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.streaming.music.config.SecurityConfig;
 import com.streaming.music.dto.request.TrackUploadRequest;
+import com.streaming.music.dto.response.StreamPlayResponse;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
+import com.streaming.music.exception.TrackNotReadyException;
 import com.streaming.music.exception.GlobalExceptionHandler;
 import com.streaming.music.exception.InvalidAudioFormatException;
 import com.streaming.music.exception.InvalidRequestException;
@@ -290,6 +292,49 @@ class TrackControllerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
         verifyNoInteractions(trackService);
+    }
+
+    @Test
+    @DisplayName("재생 진입점은 200과 6개 필드를 반환하고 userId는 null로 전달된다")
+    void returnPlayInfo() throws Exception {
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getPlayInfo(eq(trackId), isNull())).thenReturn(new StreamPlayResponse(
+                trackId, "/stream/x/index.m3u8", "제목", "가수", 215, "/artwork/x.jpg"));
+
+        mockMvc.perform(get("/api/tracks/{trackId}/play", trackId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.*", hasSize(6)))
+                .andExpect(jsonPath("$.trackId").value(trackId.toString()))
+                .andExpect(jsonPath("$.streamUrl").value("/stream/x/index.m3u8"))
+                .andExpect(jsonPath("$.title").value("제목"))
+                .andExpect(jsonPath("$.artist").value("가수"))
+                .andExpect(jsonPath("$.durationSeconds").value(215))
+                .andExpect(jsonPath("$.artworkUrl").value("/artwork/x.jpg"));
+    }
+
+    @Test
+    @DisplayName("미완료 트랙의 재생 진입점은 409 TRACK_NOT_READY이다")
+    void rejectPlayOfNotReadyTrack() throws Exception {
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getPlayInfo(eq(trackId), any())).thenThrow(new TrackNotReadyException());
+
+        mockMvc.perform(get("/api/tracks/{trackId}/play", trackId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TRACK_NOT_READY"));
+    }
+
+    @Test
+    @DisplayName("없는 트랙의 재생 진입점은 404, 잘못된 UUID는 400이다")
+    void rejectPlayOfMissingOrInvalidTrack() throws Exception {
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getPlayInfo(eq(trackId), any())).thenThrow(new TrackNotFoundException());
+
+        mockMvc.perform(get("/api/tracks/{trackId}/play", trackId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("TRACK_NOT_FOUND"));
+        mockMvc.perform(get("/api/tracks/not-a-uuid/play"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
     }
 
     @Test

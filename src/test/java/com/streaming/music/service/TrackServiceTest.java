@@ -67,6 +67,10 @@ class TrackServiceTest {
     private TrackRepository trackRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private MediaUrlResolver mediaUrlResolver;
+    @Mock
+    private PlaybackLogService playbackLogService;
 
     @TempDir
     private Path workDir;
@@ -80,7 +84,8 @@ class TrackServiceTest {
         Clock clock = Clock.fixed(Instant.parse("2026-03-05T10:00:00Z"), ZoneOffset.UTC);
         PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
         trackService = new TrackService(storageService, audioMetadataValidator, transcodeTaskDispatcher,
-                trackRepository, userRepository, audioProperties, clock, transactionManager);
+                trackRepository, userRepository, audioProperties, clock, transactionManager,
+                mediaUrlResolver, playbackLogService);
     }
 
     private MockMultipartFile audioFile() {
