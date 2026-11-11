@@ -109,13 +109,13 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [구현] `@GeneratedValue` 사용 금지(UUID는 앱 발급), `@Enumerated(STRING)`
   - [검토] `ddl-auto: update`가 만든 H2 스키마와 DDL의 CHECK/기본값 차이는 T7-2에서 `validate`로 확인
 
-### [ ] T1-2 Repository 쿼리
+### [x] T1-2 Repository 쿼리
 - **목표:** `UserRepository.findByProviderId`, `TrackRepository`(키워드 검색 + status 필터 + `createdAt DESC` 페이징, 오래된 `PENDING/PROCESSING` 일괄 `FAILED` 갱신), `PlaybackLogRepository`를 구현한다.
 - **선행:** T1-1
 - **완료 조건:**
-  - [ ] `@DataJpaTest`: keyword가 제목 또는 가수에 부분 일치(대소문자 무시)
-  - [ ] keyword 없음 → 전체 최신순, status 필터 조합 검증
-  - [ ] 일괄 갱신 쿼리가 기준 시각(`updatedAt <` threshold) 이전 `PENDING/PROCESSING`만 `FAILED`+`errorMessage`로 변경하고 `READY`는 불변
+  - [x] `@DataJpaTest`: keyword가 제목 또는 가수에 부분 일치(대소문자 무시)
+  - [x] keyword 없음 → 전체 최신순, status 필터 조합 검증
+  - [x] 일괄 갱신 쿼리가 기준 시각(`updatedAt <` threshold) 이전 `PENDING/PROCESSING`만 `FAILED`+`errorMessage`로 변경하고 `READY`는 불변
 - **주의:**
   - [구현] LIKE 와일드카드(`%`, `_`) 이스케이프 여부 결정
   - [검토] 벌크 UPDATE 후 영속성 컨텍스트 clear(`clearAutomatically`)와 `updatedAt` 처리
