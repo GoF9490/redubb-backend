@@ -1,0 +1,510 @@
+# 백엔드 구현 로드맵 (PRD-05 기준)
+
+> 기준 문서: `PRD.md`(공통 규칙), `PRD-01.md`(전체 구조), `PRD-05.md`(백엔드 상세). 엔티티는 `PRD-07.md` DDL을 계약으로 참조한다.
+> 범위: **백엔드(PRD-05)만**. Nginx·RustFS 설정·`init.sql`·클라이언트는 구현하지 않는다(발견 시 보고).
+
+## 0. 공통 진행 규칙
+
+1. **태스크 사이클:** `탐색`(관련 PRD 절 재확인) → `계획` → `구현` → `검토` 순서로 진행한다. 태스크 하나는 한 세션(1~2시간)에 끝낸다.
+2. **Service 테스트 필수:** Service 계층 코드를 작성하는 태스크는 해당 기능의 단위 테스트(`@ExtendWith(MockitoExtension.class)`, 외부 인프라 없음)를 **같은 태스크에서** 작성하고 `./gradlew test`까지 통과해야 완료다.
+3. **완료 정의:** 완료 조건 전부 체크 + `./gradlew build` 통과 + 한국어 커밋(`/git:commit`) 후 태스크 제목 체크박스를 체크한다.
+4. **범위 밖 / PRD 충돌:** 구현하지 말고 사용자에게 보고한다.
+5. **주의 메모 태그:** `[탐색]` `[계획]` `[구현]` `[검토]` 중 해당 단계에서 특히 조심할 점만 적는다.
+6. 코드 주석·문서는 한국어, 식별자는 영어(camelCase, 메서드는 동사 시작), 들여쓰기 4칸.
+
+## Phase 간 의존 순서
+
+```
+Phase 0 (골격) → Phase 1 (도메인) → Phase 2 (인프라 추상화·미디어)
+              → Phase 3 (업로드) → Phase 4 (HLS 변환) → Phase 5 (조회·재생·다운로드)
+              → Phase 6 (인증) → Phase 7 (배포·통합 확인)
+```
+Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있다.
+
+---
+
+## Phase 0 — 프로젝트 골격
+
+### [x] T0-1 빌드 의존성 추가
+- **목표:** PRD-05 §3.2 기준으로 `build.gradle.kts`에 누락 라이브러리를 추가한다(validation, JJWT 0.12.6, minio 8.5.14, tika-core 2.9.2, jaudiotagger 3.0.1).
+- **선행:** 없음
+- **완료 조건:**
+  - [x] `./gradlew build` 통과
+  - [x] `./gradlew dependencies`로 OkHttp 버전과 Jackson 2/3 공존 상태를 확인하고 결과를 커밋 메시지에 기록
+  - [x] 기존 `MusicApplicationTests.contextLoads` 통과
+- **주의:**
+  - [탐색] Boot 4 BOM이 관리하는 OkHttp 버전과 minio 8.5.x 요구 버전 충돌 여부(PRD.md §7.1)
+  - [검토] `jjwt-jackson`(Jackson 2)과 Boot 4 기본 Jackson 3가 공존해도 기동에 문제 없는지
+
+### [ ] T0-2 `application.yaml` 프로파일 구성
+- **목표:** PRD-05 §4.2대로 공통 / `local`(H2, `MODE=PostgreSQL`) / `prod`(PostgreSQL, `validate`) 설정을 구성하고 테스트용 더미 값을 둔다.
+- **선행:** T0-1
+- **완료 조건:**
+  - [ ] `contextLoads`가 더미 환경값(`src/test/resources/application-test.yaml` 등)으로 통과
+  - [ ] `local` 프로파일 기동 시 `/h2-console` 경로 활성, `open-in-view=false` 확인(테스트로 검증)
+  - [ ] 시크릿 값이 저장소 파일에 평문으로 없음(`${...}` 주입만)
+- **주의:**
+  - [탐색] `GOOGLE_CLIENT_ID` 등 필수 환경변수 미주입 시 기동 실패 → 테스트 프로파일에서 더미 주입
+  - [구현] 기존 `application.yaml`의 H2 설정(`testdb`)을 `streaming_db`로 교체
+  - [검토] `.env` 파일이 `.gitignore`에 포함되는지
+
+### [ ] T0-3 `@ConfigurationProperties` 바인딩 5종
+- **목표:** `JwtProperties`, `StorageProperties`, `AudioProperties`, `MediaProperties`, `CorsProperties`를 `config/properties`에 구현한다.
+- **선행:** T0-2
+- **완료 조건:**
+  - [ ] `ApplicationContextRunner` 테스트: 쉼표 구분 리스트(`allowed-redirect-uris`)가 `List<String>`으로 바인딩
+  - [ ] 빈 값 기본값(`public-base-url`, `allowed-origins`)이 `""`/빈 리스트로 바인딩
+  - [ ] 기본값(`presigned-expiry-seconds=60`, `ffmpeg-timeout-minutes=3`) 검증
+- **주의:**
+  - [계획] `@ConfigurationPropertiesScan` vs `@EnableConfigurationProperties` 중 하나로 통일
+  - [구현] 빈 문자열이 `null`로 들어오는 경우 방어
+
+### [ ] T0-4 공통 예외 및 에러 응답
+- **목표:** `ErrorCode` enum, `BusinessException` 계층(`InvalidAudioFormatException`, `InvalidArtworkException`, `TrackNotFoundException`, `TrackNotReadyException`), `ErrorResponse{code,message,timestamp}`, `@RestControllerAdvice`를 구현한다(PRD-05 §7.2).
+- **선행:** T0-1
+- **완료 조건:**
+  - [ ] `@WebMvcTest` + 테스트용 컨트롤러로 `400 INVALID_AUDIO_FORMAT / INVALID_ARTWORK / INVALID_REQUEST`, `404`, `409`, `413`, `500` 스키마 검증
+  - [ ] 500 응답 본문에 예외 상세·스택 미노출
+  - [ ] 잘못된 UUID 경로 변수 → `400 INVALID_REQUEST`
+  - [ ] `timestamp`가 ISO-8601(+09:00 또는 UTC) 형식
+- **주의:**
+  - [탐색] Boot 4/Spring 7에서 `MaxUploadSizeExceededException`, `MethodArgumentTypeMismatchException`의 패키지·핸들링 위치
+  - [검토] 테스트용 컨트롤러는 `src/test`에만 두고 운영 코드에 섞지 않는다
+
+### [ ] T0-5 최소 Security 설정
+- **목표:** 이후 Phase 6에서 확장할 최소 `SecurityConfig`(STATELESS, csrf/formLogin/httpBasic 비활성, 전체 `permitAll`)를 만든다.
+- **선행:** T0-1
+- **완료 조건:**
+  - [ ] `@WebMvcTest` 슬라이스로 임의 경로 요청 시 로그인 페이지 리다이렉트(302)가 없고 `404`(또는 컨트롤러 응답)가 반환
+  - [ ] 응답에 `Set-Cookie: JSESSIONID`가 없음
+- **주의:**
+  - [계획] `/api/auth/me`만 인증 필수로 두는 확정은 T6-2에서 한다(여기서는 골격만)
+  - [검토] OAuth2 Client 스타터가 클라이언트 등록 없이 기동 실패하지 않는지
+
+### [ ] T0-6 테스트 기반(샘플 파일·헬퍼)
+- **목표:** `src/test/resources/samples/`에 초소형 샘플(ID3+커버 1초 MP3, 무태그 1초 WAV, 1초 FLAC, 확장자만 `.mp3`인 텍스트 파일, jpg, png)을 만들고 로딩 헬퍼를 둔다. 10MB 초과 이미지는 테스트에서 바이트 배열로 생성한다.
+- **선행:** 없음
+- **완료 조건:**
+  - [ ] 샘플 로딩 테스트(`SampleFixtureTest`): 파일 존재·크기 > 0
+  - [ ] 샘플 생성 명령(ffmpeg 등)을 `src/test/resources/samples/README.md`에 기록
+  - [ ] 샘플 합계 크기 1MB 이하
+- **주의:**
+  - [탐색] 로컬에 ffmpeg가 없으면 생성 불가 → 사용자에게 설치/대체 방법 문의
+  - [검토] 저작권 이슈가 없는 합성음(sine)만 사용
+
+---
+
+## Phase 1 — 도메인·영속성 (PRD-07 DDL 기준)
+
+### [ ] T1-1 엔티티·Enum
+- **목표:** `TrackStatus`, `ActionType`, `User`, `Track`, `PlaybackLog`를 PRD-07 DDL과 1:1로 매핑한다.
+- **선행:** T0-2
+- **완료 조건:**
+  - [ ] `@DataJpaTest`: 3개 엔티티 저장·조회, `Track` UUID PK를 앱이 발급해 저장
+  - [ ] `User.providerId`·`email` 유니크 위반 시 예외
+  - [ ] 시간 컬럼이 `Instant`로 왕복 저장되고 `updatedAt`이 갱신 시 변경
+  - [ ] enum이 문자열로 저장(`status='PENDING'`)
+- **주의:**
+  - [탐색] PRD-07 §4·§6 DDL의 컬럼 길이·NULL 허용(`uploader_id`, `artwork_s3_key`, `hls_playlist_key`, `album`, `error_message`)
+  - [구현] `@GeneratedValue` 사용 금지(UUID는 앱 발급), `@Enumerated(STRING)`
+  - [검토] `ddl-auto: update`가 만든 H2 스키마와 DDL의 CHECK/기본값 차이는 T7-2에서 `validate`로 확인
+
+### [ ] T1-2 Repository 쿼리
+- **목표:** `UserRepository.findByProviderId`, `TrackRepository`(키워드 검색 + status 필터 + `createdAt DESC` 페이징, 오래된 `PENDING/PROCESSING` 일괄 `FAILED` 갱신), `PlaybackLogRepository`를 구현한다.
+- **선행:** T1-1
+- **완료 조건:**
+  - [ ] `@DataJpaTest`: keyword가 제목 또는 가수에 부분 일치(대소문자 무시)
+  - [ ] keyword 없음 → 전체 최신순, status 필터 조합 검증
+  - [ ] 일괄 갱신 쿼리가 기준 시각(`updatedAt <` threshold) 이전 `PENDING/PROCESSING`만 `FAILED`+`errorMessage`로 변경하고 `READY`는 불변
+- **주의:**
+  - [구현] LIKE 와일드카드(`%`, `_`) 이스케이프 여부 결정
+  - [검토] 벌크 UPDATE 후 영속성 컨텍스트 clear(`clearAutomatically`)와 `updatedAt` 처리
+
+### [ ] T1-3 `UserService` (Upsert)
+- **목표:** OAuth2 정보(`sub`, `email`, `picture`)로 회원 조회/자동 생성/갱신(`lastLoginAt`).
+- **선행:** T1-2
+- **완료 조건:**
+  - [ ] `UserServiceTest` 1: 최초 로그인 시 신규 `User`(provider=GOOGLE, role=ROLE_USER, profileImageUrl) 저장
+  - [ ] `UserServiceTest` 2: 기존 `providerId`면 중복 저장 없이 email·profileImageUrl·lastLoginAt 갱신 후 반환
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [계획] 이메일이 변경된 기존 회원의 email 유니크 충돌 처리 범위(MVP는 로그만/예외) 결정 후 기록
+  - [구현] 트랜잭션 경계(`@Transactional`)
+
+### [ ] T1-4 `PlaybackLogService`
+- **목표:** STREAM/DOWNLOAD 이력 기록. `user`는 nullable, 저장 실패는 예외를 삼키고 로그만 남긴다(PRD-05 §7.1.3).
+- **선행:** T1-2
+- **완료 조건:**
+  - [ ] `PlaybackLogServiceTest`: 로그인 사용자/비로그인(`user=null`) 각각 저장 호출 검증
+  - [ ] 리포지토리가 예외를 던져도 메서드가 예외를 전파하지 않음
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [계획] 호출자 트랜잭션이 롤백 전용으로 마킹되지 않도록 `REQUIRES_NEW` 또는 트랜잭션 밖 호출 여부 결정
+  - [검토] 예외를 삼키되 `log.warn`에 trackId 포함
+
+---
+
+## Phase 2 — 외부 인프라 추상화·미디어 처리 컴포넌트
+
+### [ ] T2-1 `MediaUrlResolver`
+- **목표:** S3 키 ➔ `streamUrl`/`artworkUrl` 변환(`app.media.public-base-url` 적용).
+- **선행:** T0-3
+- **완료 조건:**
+  - [ ] `MediaUrlResolverTest`: base 빈 값 → `/stream/{uuid}/index.m3u8`, 값 있음 → `{base}/stream/...`
+  - [ ] `artworkS3Key == null` → `artworkUrl == null`
+  - [ ] base 끝에 `/`가 있어도 `//` 중복 없음
+  - [ ] `./gradlew test` 통과
+- **주의:** [구현] DB에는 URL이 아닌 S3 키만 저장(`hls_playlist_key`)
+
+### [ ] T2-2 `StorageService` 인터페이스 + MinIO 구현 (단건 연산)
+- **목표:** 버킷 존재 확인/생성(기동 시), 원본·앨범아트 업로드(Content-Type 지정), 객체 삭제, presigned GET URL 생성, 객체 다운로드를 `StorageService` 인터페이스와 MinIO 구현체(`StorageConfig`로 `MinioClient` 빈)로 만든다.
+- **선행:** T0-3
+- **완료 조건:**
+  - [ ] `MinioClient`를 Mock으로 둔 단위 테스트: 업로드 시 지정한 key·contentType이 전달
+  - [ ] 버킷이 있으면 생성 호출 없음, 없으면 생성 호출
+  - [ ] presign 호출 시 만료 시간과 고정 region 사용(네트워크 호출 없이 서명)
+  - [ ] SDK 예외가 도메인 예외(`500 INTERNAL_ERROR` 대상)로 변환
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] minio 8.5.14의 `getPresignedObjectUrl`·`region` 지정 방식(Context7로 확인)
+  - [계획] 인터페이스 메서드는 `Resource`/`InputStream` 등 파일 객체를 이벤트로 넘기지 않는 형태로 설계
+  - [검토] 버킷 정책 설정은 `storage-init` 소관 — 코드에 넣지 않는다
+
+### [ ] T2-3 `StorageService.uploadDirectoryRecursively`
+- **목표:** 로컬 디렉터리를 `Files.walk`로 순회해 `hls/{uuid}/` 하위에 그대로 업로드하고 확장자별 Content-Type(`.m3u8`, `.ts`)을 지정한다.
+- **선행:** T2-2
+- **완료 조건:**
+  - [ ] `@TempDir` 테스트: 하위 폴더 포함 파일의 S3 키가 `hls/{uuid}/<상대경로>`로 생성
+  - [ ] `.m3u8 → application/vnd.apple.mpegurl`, `.ts → video/mp2t` 검증
+  - [ ] 하나라도 업로드 실패 시 예외 전파
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [구현] Windows에서 `\` 경로 구분자를 `/`로 변환
+  - [검토] 알 수 없는 확장자의 기본 Content-Type(`application/octet-stream`)
+
+### [ ] T2-4 `AudioMetadataValidator` ① Tika 검증
+- **목표:** 음원 MIME 위변조 검증, MIME→확장자 정규화, 앨범자켓(JPEG/PNG, 10MB) 검증.
+- **선행:** T0-6
+- **완료 조건:**
+  - [ ] 정상 MP3/WAV/FLAC(`audio/x-flac` 포함) 통과
+  - [ ] 확장자만 `.mp3`인 텍스트 파일 → `InvalidAudioFormatException`
+  - [ ] 정규화: `audio/mpeg→mp3`, wav 계열→`wav`, flac 계열→`flac`, `audio/mp4→m4a`
+  - [ ] 아트워크: jpg/png 통과, 비이미지·10MB 초과 → `InvalidArtworkException`
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] Tika가 샘플 WAV/M4A를 어떤 MIME으로 반환하는지 실제 확인(허용 목록에 없는 변형 발견 시 PRD 갱신 여부를 사용자에게 문의)
+  - [검토] 검증 실패 시 임시 파일 삭제는 호출자(`TrackService`)의 finally 책임임을 명확히
+
+### [ ] T2-5 `AudioMetadataValidator` ② 태그·커버 추출
+- **목표:** JAudioTagger로 재생 시간(1초 미만 → 1초 보정), 제목/가수/앨범 Fallback, 내장 앨범 커버 추출.
+- **선행:** T2-4
+- **완료 조건:**
+  - [ ] ID3 MP3에서 제목·가수·재생 시간·커버 바이트 추출
+  - [ ] 무태그 WAV: `title=파일명(확장자 제외)`, `artist="Unknown Artist"`, `album=null`
+  - [ ] request 값이 태그보다 우선
+  - [ ] 헤더 파싱 실패 → `InvalidAudioFormatException`
+  - [ ] 1초 미만 샘플은 `durationSeconds=1`
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] JAudioTagger 3.0.1이 `File` 경로·확장자에 의존 → 임시 파일 확장자 규칙 확인
+  - [구현] JAudioTagger 로거 소음 억제(테스트/운영 로그 레벨)
+  - [검토] 공백 문자열을 "비어 있음"으로 취급
+
+### [ ] T2-6 `FfmpegCommandRunner`
+- **목표:** `FfmpegCommandRunner` 인터페이스와 `ProcessBuilder` 구현(명령 구성, 타임아웃 후 `destroyForcibly`, 출력 스트림 소비, 마지막 로그 500자 요약).
+- **선행:** T0-3
+- **완료 조건:**
+  - [ ] 명령 인자 빌더 단위 테스트: PRD-05 §6.3-3 명령과 동일한 인자(`-b:a 192k -ar 44100 -ac 2 -hls_time 6 -hls_list_size 0`, `chunk_%03d.ts`)
+  - [ ] 결과 타입(성공/비정상 종료/타임아웃) 반환 테스트(실행기 부분은 가짜 프로세스 스크립트 또는 명령 주입으로 검증)
+  - [ ] 로그 요약이 500자 이하
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [계획] 테스트 가능성을 위해 "명령 생성"과 "프로세스 실행"을 분리
+  - [구현] `redirectErrorStream(true)` 후 출력 소비 필수(버퍼 막힘 방지), 경로에 공백 있는 Windows 환경 고려
+  - [검토] 타임아웃 시 자식 프로세스 잔류 여부
+
+---
+
+## Phase 3 — 업로드 동기 파이프라인
+
+### [ ] T3-1 변환 이벤트·디스패처
+- **목표:** `TranscodeEventDto(trackId, originalS3Key)`, `TranscodeTaskDispatcher` 인터페이스, `ApplicationEventPublisher` 기반 구현.
+- **선행:** T1-1
+- **완료 조건:**
+  - [ ] 디스패처 단위 테스트: `dispatch(dto)`가 `publishEvent(dto)`를 정확히 1회 호출
+  - [ ] DTO에 파일 객체·로컬 경로 필드가 없음(필드 2개만)
+  - [ ] `./gradlew test` 통과
+- **주의:** [검토] 호출부(`TrackService`)가 변환 구현체를 직접 참조하지 않는지
+
+### [ ] T3-2 `TrackService.upload` 정상 경로
+- **목표:** 임시 파일 저장 → Tika 검증 → 메타/커버 결정(커스텀 > 내장 > null) → 원본·앨범아트 저장 → `PENDING` 저장 → 이벤트 발행.
+- **선행:** T1-2, T2-2, T2-5, T3-1
+- **완료 조건:**
+  - [ ] `TrackServiceTest` 업로드 ①: 커스텀 `artworkFile` 있으면 우선 저장, 없으면 내장 커버 저장, 둘 다 없으면 `artworkS3Key=null`
+  - [ ] 원본 키가 `original/{yyyy}/{mm}/{uuid}.{ext}`, 앨범 키가 `artwork/{uuid}.jpg`, Content-Type이 실제 MIME
+  - [ ] 저장된 `Track`이 `status=PENDING`, `hlsPlaylistKey=null`
+  - [ ] `TranscodeEventDto(trackId, originalS3Key)` 1회 발행
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [계획] 트랜잭션 경계: 스토리지 업로드는 DB 트랜잭션 밖, 엔티티 저장+이벤트 발행은 트랜잭션 안(커밋 후 리스너 동작 전제)
+  - [구현] `uuid` 생성은 서비스에서, 연·월 계산은 `Clock` 주입(테스트 고정)
+  - [검토] `request.title` 길이(200자)·`artist`(150자) 초과 시 처리
+
+### [ ] T3-3 보상 처리·임시 파일 정리
+- **목표:** DB 저장 실패 시 업로드한 원본·앨범아트 삭제, `finally`에서 임시 파일 삭제, 비로그인 업로드(`uploader=null`) 지원.
+- **선행:** T3-2
+- **완료 조건:**
+  - [ ] `TrackServiceTest` 업로드 ②: 저장 예외 시 `deleteObject`가 원본·앨범아트에 호출되고 예외 전파
+  - [ ] 성공·실패·검증 실패 모두에서 임시 파일 삭제 검증(`@TempDir` 하의 work-dir)
+  - [ ] `uploader` 없음/있음 두 경로 저장 검증
+  - [ ] 삭제 자체가 실패해도 원래 예외가 가려지지 않음
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [계획] 이벤트 발행 후 커밋 실패 시 리스너가 실행되지 않으므로(AFTER_COMMIT) 보상과 충돌하지 않는지 확인
+  - [검토] 앨범아트가 없는 경우 `deleteObject(null)` 호출 방지
+
+### [ ] T3-4 업로드 컨트롤러
+- **목표:** `TrackController`의 `POST /api/tracks/upload`와 `TrackUploadRequest`, `TrackResponse` DTO.
+- **선행:** T3-3, T0-4, T2-1
+- **완료 조건:**
+  - [ ] `@WebMvcTest`: 정상 업로드 → `202` + `TrackResponse`(`status="PENDING"`, `errorMessage` 미노출)
+  - [ ] `file` 누락 → `400 INVALID_REQUEST`
+  - [ ] 서비스가 던지는 `InvalidAudioFormatException` → `400 INVALID_AUDIO_FORMAT`
+  - [ ] 용량 초과 → `413 PAYLOAD_TOO_LARGE`
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] Boot 4 MockMvc multipart 테스트 API
+  - [검토] `TrackResponse` 필드가 PRD-05 §7.1.1과 정확히 일치(`artworkUrl`은 resolver 경유)
+
+---
+
+## Phase 4 — 비동기 HLS 변환
+
+### [ ] T4-1 `transcodeExecutor` 및 큐 포화 처리
+- **목표:** `AsyncConfig`에 `transcodeExecutor`(core 1, max 2, queue 50)를 등록하고, 큐 포화(`TaskRejectedException`) 시 트랙을 `FAILED(TRANSCODE_QUEUE_FULL)`로 기록한다.
+- **선행:** T3-1
+- **완료 조건:**
+  - [ ] 설정 테스트: executor의 core/max/queue 값 검증
+  - [ ] 거부 발생 시 `FAILED`와 `errorMessage="TRANSCODE_QUEUE_FULL"` 갱신 검증(단위 테스트)
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [계획] AFTER_COMMIT 시점의 `@Async` 거부 예외는 호출부로 전파되지 않을 수 있다 → 예외를 어디서 잡을지(커스텀 `RejectedExecutionHandler` 등) 먼저 설계
+  - [검토] `@EnableAsync` 위치와 `AsyncUncaughtExceptionHandler`
+
+### [ ] T4-2 `HlsTranscodeService` 성공 경로
+- **목표:** 이벤트 수신(`@Async("transcodeExecutor") @TransactionalEventListener(AFTER_COMMIT)`) → `PROCESSING` → 원본 다운로드 → FFmpeg → 재귀 업로드 → `READY`(`hls/{uuid}/index.m3u8`).
+- **선행:** T2-3, T2-6, T4-1
+- **완료 조건:**
+  - [ ] `HlsTranscodeServiceTest` 성공: 상태 전이 `PROCESSING → READY`, `hlsPlaylistKey="hls/{uuid}/index.m3u8"`
+  - [ ] `uploadDirectoryRecursively`가 `${work-dir}/{uuid}/hls`를 대상으로 호출
+  - [ ] 작업 디렉터리 `${work-dir}/{uuid}/input.{ext}` 경로 규칙 검증
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] 상태 갱신은 별도 트랜잭션(리스너는 새 트랜잭션 필요: `REQUIRES_NEW`)
+  - [구현] 존재하지 않는 `trackId` 수신 시 예외 전파 대신 로그
+  - [검토] `PROCESSING` 전이를 FFmpeg 시작 전에 커밋하는지
+
+### [ ] T4-3 실패·타임아웃·정리
+- **목표:** FFmpeg 비정상 종료/예외/타임아웃을 `FAILED`로 기록하고(`FFMPEG_TIMEOUT`, 에러 메시지 500자 제한) 임시 폴더를 항상 삭제한다.
+- **선행:** T4-2
+- **완료 조건:**
+  - [ ] `HlsTranscodeServiceTest` 실패: `exitCode != 0` → `FAILED` + 로그 요약 기록
+  - [ ] 타임아웃 → `FAILED`, `errorMessage="FFMPEG_TIMEOUT"`
+  - [ ] 성공·실패·예외 모든 경우 임시 폴더 삭제 검증
+  - [ ] 업로드 도중 예외 시에도 `FAILED` 처리
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [구현] `errorMessage` 500자 초과 절단(DB 컬럼 길이 확인)
+  - [검토] `finally` 정리 중 예외가 원래 예외를 덮지 않는지
+
+### [ ] T4-4 `TranscodeRecoveryRunner`
+- **목표:** 기동 시 `updatedAt`이 `ffmpeg-timeout-minutes × 2` 이상 경과한 `PENDING/PROCESSING` 트랙만 `FAILED("INTERRUPTED_BY_RESTART")`로 갱신한다(자동 재변환 제외).
+- **선행:** T1-2
+- **완료 조건:**
+  - [ ] `TranscodeRecoveryRunnerTest`: `Clock` 고정 시 threshold 시각이 `now - timeout×2`로 계산되어 리포지토리에 전달
+  - [ ] 갱신 건수 0건일 때도 정상 종료
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [계획] 다중 노드 재시작 시 정상 변환 중인 트랙 보호가 핵심(PRD-05 §6.3-5)
+  - [검토] 테스트 프로파일에서 Runner가 실제 DB를 건드려 다른 테스트에 영향 주지 않는지
+
+### [ ] T4-5 이벤트 연결 통합 확인
+- **목표:** 업로드 트랜잭션 **커밋 이후**에만 변환 리스너가 호출되는지 확인한다.
+- **선행:** T4-3, T3-3
+- **완료 조건:**
+  - [ ] `@SpringBootTest` + `StorageService`/`FfmpegCommandRunner` Mock: 커밋 시 리스너 호출, 롤백 시 미호출
+  - [ ] 리스너가 `transcodeExecutor` 스레드에서 실행됨(스레드명 검증)
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] `@Transactional` 테스트는 기본 롤백이라 AFTER_COMMIT이 호출되지 않음 → `TransactionTemplate` 사용
+  - [검토] 비동기 검증은 `Awaitility` 없이도 가능한 방식(CountDownLatch) 우선
+
+---
+
+## Phase 5 — 조회·재생·다운로드
+
+### [ ] T5-1 목록·상세 서비스
+- **목표:** `TrackService.getTracks/getTrack`과 `TrackPageResponse` 변환(`size` 최대 100 제한).
+- **선행:** T1-2, T2-1
+- **완료 조건:**
+  - [ ] `TrackServiceTest` 조회 ①: keyword 없음 → 전체 최신순 호출, keyword 있음 → 검색 쿼리 호출
+  - [ ] `size=500` 요청 시 100으로 보정
+  - [ ] 존재하지 않는 id → `TrackNotFoundException`
+  - [ ] `TrackPageResponse`가 `{content,page,size,totalElements,totalPages,hasNext}` 고정 스키마
+  - [ ] `./gradlew test` 통과
+- **주의:** [구현] Spring `Page`를 그대로 직렬화하지 않는다
+
+### [ ] T5-2 목록·상세 컨트롤러
+- **목표:** `GET /api/tracks`, `GET /api/tracks/{trackId}`.
+- **선행:** T5-1
+- **완료 조건:**
+  - [ ] `@WebMvcTest`: 기본값(page 0, size 20), 쿼리 파라미터 전달 검증
+  - [ ] 잘못된 UUID → `400`, 없는 트랙 → `404 TRACK_NOT_FOUND`
+  - [ ] `./gradlew test` 통과
+- **주의:** [검토] `status` 파라미터가 잘못된 enum 값일 때 `400 INVALID_REQUEST`
+
+### [ ] T5-3 재생 진입점
+- **목표:** `getPlayInfo`와 `GET /api/tracks/{id}/play` (`READY` 검증, `409`, `STREAM` 이력).
+- **선행:** T5-1, T1-4
+- **완료 조건:**
+  - [ ] `TrackServiceTest` 재생 ①: `PROCESSING`/`PENDING`/`FAILED` → `TrackNotReadyException`
+  - [ ] `READY` → `StreamPlayResponse(trackId,streamUrl,title,artist,durationSeconds,artworkUrl)` 반환
+  - [ ] 성공 시 `PlaybackLogService`가 `STREAM`으로 1회 호출, 실패 시 호출 없음
+  - [ ] 컨트롤러 `@WebMvcTest`: `200`/`409`/`404`
+  - [ ] `./gradlew test` 통과
+- **주의:** [검토] 이력 기록 실패가 응답을 막지 않는지(T1-4와 연동)
+
+### [ ] T5-4 원본 다운로드 지시
+- **목표:** `getDownloadInfo`와 `GET /api/tracks/{id}/download` — presigned URL을 `X-Accel-Redirect`로 변환하고 RFC 5987 `Content-Disposition`을 구성한다.
+- **선행:** T5-1, T2-2, T1-4
+- **완료 조건:**
+  - [ ] `TrackServiceTest` 다운로드 ①: presigned URL 스텁에서 `/internal-storage/original/...?{서명 쿼리}`를 **쿼리 재인코딩 없이** 생성
+  - [ ] 한글 파일명 → `filename*=UTF-8''<퍼센트 인코딩>`과 ASCII 대체 `filename` 동시 포함
+  - [ ] `PENDING` 상태에서도 다운로드 허용, 없는 트랙 `404`
+  - [ ] 성공 시 `DOWNLOAD` 이력 1회 기록
+  - [ ] 컨트롤러 테스트: `200`, Body 비어 있음, `X-Accel-Redirect`·`Content-Disposition`·`Content-Type` 헤더 검증
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] PRD-05 §7.1.2의 경로 분리 규칙(`/{bucket}/` 이후 경로 + 원본 쿼리)
+  - [구현] `Content-Disposition`의 따옴표·줄바꿈·특수문자(헤더 인젝션) 이스케이프
+  - [검토] Nginx가 헤더를 유지하는지는 통합 테스트 소관(PRD.md §7.1) — 본 태스크 범위 밖
+
+---
+
+## Phase 6 — 인증 (Google OAuth2 + JWT)
+
+### [ ] T6-1 `JwtTokenProvider`
+- **목표:** HMAC-SHA256 JWT 생성·파싱·검증(`sub=userId`, `role`).
+- **선행:** T0-3
+- **완료 조건:**
+  - [ ] `JwtTokenProviderTest`: 정상 토큰 왕복, 만료 토큰 거부, 서명 위조 거부, 형식 오류 거부
+  - [ ] 서명 키가 32바이트 미만이면 기동/생성 시 명확한 예외
+  - [ ] `./gradlew test` 통과
+- **주의:** [구현] JJWT 0.12.x 신 API(`Jwts.builder().signWith(key)`, `parser().verifyWith`) 사용, `Clock`/만료 주입으로 테스트 가능하게
+
+### [ ] T6-2 JWT 필터·`/api/auth/me`·Security 확정
+- **목표:** `JwtAuthenticationFilter`(무효 토큰은 익명 통과), `RestAuthenticationEntryPoint`(401 공통 JSON), `AuthController`, `SecurityConfig`에서 `/api/auth/me`만 인증 필수.
+- **선행:** T6-1, T1-3, T0-5
+- **완료 조건:**
+  - [ ] `@WebMvcTest`: 유효 토큰 → `200 UserResponse{userId,email,profileImageUrl,role}`
+  - [ ] 토큰 없음/무효 → `401 UNAUTHORIZED` JSON(리다이렉트 없음)
+  - [ ] 무효 토큰으로 `/api/tracks`는 차단되지 않음
+  - [ ] `UserService`(또는 조회 서비스) 단위 테스트: 존재하지 않는 userId → 401 처리 경로
+  - [ ] `./gradlew test` 통과
+- **주의:** [계획] 필터가 `UserDetails` 대신 어떤 Principal을 넣을지(userId `Long`) 결정 — 이후 T6-7에서 재사용
+
+### [ ] T6-3 쿠키 기반 인가 요청 저장소
+- **목표:** `HttpCookieOAuth2AuthorizationRequestRepository` — 인가 요청과 `redirect_uri`를 쿠키(`oauth2_auth_request`, `oauth2_redirect_uri`; HttpOnly, Path=/, Max-Age=180, SameSite=Lax)에 저장한다.
+- **선행:** T0-5
+- **완료 조건:**
+  - [ ] 저장 후 로드 시 동일한 `OAuth2AuthorizationRequest` 복원(`MockHttpServletRequest/Response`)
+  - [ ] 쿠키 속성(HttpOnly, Path, Max-Age, SameSite) 검증
+  - [ ] 삭제 시 두 쿠키 Max-Age=0
+  - [ ] 변조된 쿠키 값 → null 반환(예외 없음)
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] Spring Security 7의 `OAuth2AuthorizationRequestRepository` 시그니처·직렬화 방식 (Context7로 확인)
+  - [검토] 쿠키 값 직렬화는 안전한 방식(Java 직렬화 역직렬화 취약점 주의)
+
+### [ ] T6-4 `CustomOAuth2UserService`
+- **목표:** Google 응답에서 `sub/email/picture`만 추출해 `UserService.upsert`를 호출한다.
+- **선행:** T1-3
+- **완료 조건:**
+  - [ ] 단위 테스트: 속성 매핑(`sub/email/picture`) 후 `UserService` 호출
+  - [ ] 필수 속성(`sub`, `email`) 누락 시 `OAuth2AuthenticationException`
+  - [ ] `./gradlew test` 통과
+- **주의:**
+  - [탐색] scope에 `openid`가 있으면 `OidcUserService` 경로가 사용된다 → `CustomOAuth2UserService`만으로 충분한지 확인하고, 필요 시 OIDC 서비스 커스터마이징 여부를 사용자에게 문의
+  - [검토] 불필요한 개인정보(이름 등)를 저장하지 않는다
+
+### [ ] T6-5 성공·실패 핸들러
+- **목표:** `OAuth2AuthenticationSuccessHandler`(화이트리스트 완전 일치 시 `?token=`, 불일치 시 `default?error=invalid_redirect_uri`, 쿠키 삭제)와 `OAuth2AuthenticationFailureHandler`(`?error=`).
+- **선행:** T6-1, T6-3
+- **완료 조건:**
+  - [ ] `OAuth2AuthenticationSuccessHandlerTest` 1: 웹·앱 `redirect_uri` 쿠키 → `{redirect_uri}?token={jwt}` 리다이렉트
+  - [ ] 2: 화이트리스트 외 URI → 토큰 없이 `?error=invalid_redirect_uri`
+  - [ ] 3: 처리 후 두 쿠키 삭제
+  - [ ] `redirect_uri` 없음 → 기본 URI로 `?token=`
+  - [ ] 부분 일치/대소문자·쿼리 추가 변형 URI 거부
+  - [ ] 실패 핸들러가 `?error={code}`로 리다이렉트
+  - [ ] `./gradlew test` 통과
+- **주의:** [검토] Open Redirect 방지 — 완전 일치(scheme·host·port·path), `musicapp://` 커스텀 스킴 URI 파싱 동작
+
+### [ ] T6-6 CORS 설정
+- **목표:** `app.cors.allowed-origins`가 비어 있으면 CORS 비활성, 값이 있으면 해당 오리진에 한해 `GET, POST, OPTIONS`와 `Authorization`, `Content-Type` 허용(`allowCredentials=false`).
+- **선행:** T0-3, T0-5
+- **완료 조건:**
+  - [ ] 빈 설정: 프리플라이트 요청에 `Access-Control-Allow-Origin` 없음
+  - [ ] 허용 오리진: 프리플라이트 성공, 비허용 오리진 거부
+  - [ ] `./gradlew test` 통과
+- **주의:** [구현] `CorsConfigurationSource` 빈이 `SecurityConfig`에서 참조되는 구조(PRD-05 §7.3)
+
+### [ ] T6-7 인증 사용자 연결 (업로더·이력)
+- **목표:** 인증된 사용자를 업로드 `uploader`와 재생·다운로드 이력 `user`에 연결한다.
+- **선행:** T6-2, T3-4, T5-4
+- **완료 조건:**
+  - [ ] 컨트롤러 테스트: 토큰 있음 → 서비스에 userId 전달, 없음 → null 전달
+  - [ ] `TrackServiceTest`: userId가 있을 때 `uploader` 설정, 없을 때 null
+  - [ ] 존재하지 않는 userId 토큰이어도 업로드가 실패하지 않음(익명 처리)
+  - [ ] `./gradlew test` 통과
+- **주의:** [계획] 컨트롤러에서 Principal→userId 변환을 한 곳(예: argument resolver 또는 헬퍼)으로 모아 중복 방지
+
+---
+
+## Phase 7 — 배포 준비 및 백엔드 측 확인
+
+### [ ] T7-1 Dockerfile·환경변수 예시
+- **목표:** PRD-05 §2.2 `Dockerfile`, `.env.example`(PRD-05 §4.3 변수 전체), `.gitignore`에 `.env` 추가.
+- **선행:** T6-7
+- **완료 조건:**
+  - [ ] `./gradlew build` 후 `docker build` 성공
+  - [ ] `.env.example`에 PRD-05 §4.3 모든 환경변수 포함(시크릿은 예시 값만)
+  - [ ] `git check-ignore .env` 성공
+- **주의:** [검토] 이미지에 시크릿이 포함되지 않는지, `docker-compose`는 범위 밖(보고만)
+
+### [ ] T7-2 `prod` 스키마 검증
+- **목표:** PRD-07 `init.sql`을 적용한 PostgreSQL에서 `ddl-auto: validate`로 엔티티 매핑 일치를 확인한다.
+- **선행:** T1-1, T7-1
+- **완료 조건:**
+  - [ ] 로컬 PostgreSQL 컨테이너에 `init.sql` 적용 후 `prod` 프로파일 기동 성공
+  - [ ] 매핑 불일치 발견 시 엔티티 수정(또는 PRD-07 변경 필요 시 보고)
+- **주의:** [탐색] `init.sql` 작성·수정은 PRD-07 범위 — 읽기만 하고, 불일치는 사용자에게 보고
+
+### [ ] T7-3 수동 스모크 (백엔드 + RustFS + FFmpeg)
+- **목표:** 실제 RustFS와 FFmpeg로 업로드 → `READY` → `/play` → `/download` 헤더까지 백엔드 단독 확인.
+- **선행:** T7-2
+- **완료 조건:**
+  - [ ] 샘플 MP3 업로드 후 폴링으로 `READY` 도달, RustFS에 `original/`, `artwork/`, `hls/{uuid}/index.m3u8`, `chunk_*.ts` 존재
+  - [ ] `/download` 응답의 presigned URL로 직접 GET 시 원본 반환, 서명 없이는 거부
+  - [ ] 결과를 체크리스트로 기록
+- **주의:**
+  - [검토] Nginx 의존 항목(`X-Accel-Redirect` 헤더 유지, presigned 쿼리 보존, RustFS 경로별 정책)은 통합 테스트로 이관한다(PRD.md §7.1)
+  - [탐색] `STORAGE_ENDPOINT` host:port가 presign 서명 Host가 됨(PRD-05 §4.2 주의)
+
+---
+
+## 범위 밖 / 이관 항목
+
+- Nginx 설정, RustFS 버킷 정책(`storage-init`), `init.sql`, 웹·앱 클라이언트: 구현하지 않고 계약 확인만 한다.
+- 통합 테스트로 이관: `X-Accel-Redirect` + `Content-Disposition` 유지, presigned 쿼리 서명 보존, RustFS `hls/*`·`artwork/*` 정책(PRD.md §7.1).
+- MVP 이후 과제: `/api/auth/check`, Refresh Token·블랙리스트, 자동 재변환·외부 큐, ABR(PRD.md §7.2).
