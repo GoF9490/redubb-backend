@@ -301,14 +301,15 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [검토] `@EnableAsync` 위치와 `AsyncUncaughtExceptionHandler`
     - **결정(기록):** `@EnableAsync`는 `AsyncConfig`에 둔다. `AsyncConfigurer`는 구현하지 않고 기본 `SimpleAsyncUncaughtExceptionHandler`를 쓴다(작업 내부 예외는 T4-2/T4-3이 직접 `FAILED` 처리). 종료 시 실행 중 작업은 인터럽트(PRD 무지정, 기본값 유지). 참고: `ThreadPoolExecutor`는 큐(50)가 가득 차야 두 번째 스레드(max 2)를 만들므로 평소 동시 변환은 1건이다.
 
-### [ ] T4-2 `HlsTranscodeService` 성공 경로
+### [x] T4-2 `HlsTranscodeService` 성공 경로
 - **목표:** `TranscodeProcessor`를 구현하고 `@Async("transcodeExecutor")`로 동작하는 `HlsTranscodeService.process(dto)`가 `PROCESSING` → 원본 다운로드 → FFmpeg → 재귀 업로드 → `READY`(`hls/{uuid}/index.m3u8`)로 처리한다. (이벤트 수신 `@TransactionalEventListener(AFTER_COMMIT)`는 T4-1의 동기 `TranscodeEventRelay`가 담당하며 `process`를 호출한다. 구현체가 생기면 릴레이의 `ObjectProvider` 지연 주입을 필수 주입으로 전환한다.)
 - **선행:** T2-3, T2-6, T4-1
 - **완료 조건:**
-  - [ ] `HlsTranscodeServiceTest` 성공: 상태 전이 `PROCESSING → READY`, `hlsPlaylistKey="hls/{uuid}/index.m3u8"`
-  - [ ] `uploadDirectoryRecursively`가 `${work-dir}/{uuid}/hls`를 대상으로 호출
-  - [ ] 작업 디렉터리 `${work-dir}/{uuid}/input.{ext}` 경로 규칙 검증
-  - [ ] `./gradlew test` 통과
+  - [x] `HlsTranscodeServiceTest` 성공: 상태 전이 `PROCESSING → READY`, `hlsPlaylistKey="hls/{uuid}/index.m3u8"`
+  - [x] `uploadDirectoryRecursively`가 `${work-dir}/{uuid}/hls`를 대상으로 호출
+  - [x] 작업 디렉터리 `${work-dir}/{uuid}/input.{ext}` 경로 규칙 검증
+  - [x] `./gradlew test` 통과
+  - **구현 메모(기록):** `process`는 짧은 `REQUIRES_NEW` 트랜잭션으로 `PROCESSING`을 FFmpeg 시작 전에 커밋하고, 다운로드·FFmpeg·업로드는 트랜잭션 밖에서 수행하며, 성공 시 `READY`+`hlsPlaylistKey`를 별도 커밋한다. `PENDING`이 아니거나 없는 트랙은 경고 로그 후 건너뛴다(다중 노드 동시 처리 경합은 낙관적 락이 없어 MVP 한계). 원본 키는 이벤트 키 사용(DB와 다르면 warn). **T4-3 선반영:** 성공이 아닌 `FfmpegResult`(TIMEOUT은 `FFMPEG_TIMEOUT`, 그 외는 `logSummary`)와 예외(클래스명)를 `FAILED`로 기록하고 `finally`에서 `work-dir/{uuid}` 전체를 삭제한다. T4-3은 이 위에 메시지 규칙·500자 제한·업로드 예외·정리 중 예외 비가림 검증을 보강한다. `TranscodeEventRelay`는 `TranscodeProcessor` 필수 주입으로 전환했다.
 - **주의:**
   - [탐색] 상태 갱신은 별도 트랜잭션(리스너는 새 트랜잭션 필요: `REQUIRES_NEW`)
   - [구현] 존재하지 않는 `trackId` 수신 시 예외 전파 대신 로그

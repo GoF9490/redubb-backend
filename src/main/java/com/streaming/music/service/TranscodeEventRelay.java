@@ -3,7 +3,6 @@ package com.streaming.music.service;
 import com.streaming.music.dto.event.TranscodeEventDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -16,26 +15,19 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * PENDING에 영구히 남고, 거부된 작업에는 trackId가 없어 FAILED로 바꿀 수 없다.
  * 그래서 trackId를 쥔 이 동기 릴레이에서 거부를 잡아 FAILED(TRANSCODE_QUEUE_FULL)로 기록한다.
  * <p>
- * {@link TranscodeProcessor} 구현체는 T4-2에서 생긴다. 그 전에도 컨텍스트가 기동되도록
- * {@link ObjectProvider}로 지연 주입하며, 부재 시에는 경고 로그만 남긴다.
- * T4-2에서 구현체가 생기면 필수 주입으로 전환할 예정이다.
+ * {@link TranscodeProcessor}는 구현체({@code HlsTranscodeService})를 필수 주입으로 받는다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class TranscodeEventRelay {
 
-    private final ObjectProvider<TranscodeProcessor> processorProvider;
+    private final TranscodeProcessor processor;
     private final TranscodeRejectionHandler rejectionHandler;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void relayTranscode(TranscodeEventDto dto) {
         try {
-            TranscodeProcessor processor = processorProvider.getIfAvailable();
-            if (processor == null) {
-                log.warn("TranscodeProcessor 빈이 없어 변환을 시작하지 못했습니다. trackId={}", dto.trackId());
-                return;
-            }
             processor.process(dto);
         } catch (TaskRejectedException e) {
             log.warn("변환 큐가 가득 차 작업이 거부되었습니다. trackId={}", dto.trackId());
