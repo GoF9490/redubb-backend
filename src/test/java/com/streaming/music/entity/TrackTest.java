@@ -42,4 +42,15 @@ class TrackTest {
         assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
         assertThat(track.getErrorMessage()).hasSize(500);
     }
+
+    @Test
+    @DisplayName("FAILED 전이 시 메시지가 null이어도 안전하게 처리한다")
+    void markFailedWithNullMessage() {
+        Track track = newTrack();
+
+        track.markFailed(null);
+
+        assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
+        assertThat(track.getErrorMessage()).isNull();
+    }
 }

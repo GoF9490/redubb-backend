@@ -315,18 +315,21 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [구현] 존재하지 않는 `trackId` 수신 시 예외 전파 대신 로그
   - [검토] `PROCESSING` 전이를 FFmpeg 시작 전에 커밋하는지
 
-### [ ] T4-3 실패·타임아웃·정리
+### [x] T4-3 실패·타임아웃·정리
 - **목표:** FFmpeg 비정상 종료/예외/타임아웃을 `FAILED`로 기록하고(`FFMPEG_TIMEOUT`, 에러 메시지 500자 제한) 임시 폴더를 항상 삭제한다.
 - **선행:** T4-2
 - **완료 조건:**
-  - [ ] `HlsTranscodeServiceTest` 실패: `exitCode != 0` → `FAILED` + 로그 요약 기록
-  - [ ] 타임아웃 → `FAILED`, `errorMessage="FFMPEG_TIMEOUT"`
-  - [ ] 성공·실패·예외 모든 경우 임시 폴더 삭제 검증
-  - [ ] 업로드 도중 예외 시에도 `FAILED` 처리
-  - [ ] `./gradlew test` 통과
+  - [x] `HlsTranscodeServiceTest` 실패: `exitCode != 0` → `FAILED` + 로그 요약 기록
+  - [x] 타임아웃 → `FAILED`, `errorMessage="FFMPEG_TIMEOUT"`
+  - [x] 성공·실패·예외 모든 경우 임시 폴더 삭제 검증
+  - [x] 업로드 도중 예외 시에도 `FAILED` 처리
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [구현] `errorMessage` 500자 초과 절단(DB 컬럼 길이 확인)
+    - **확인(기록):** `Track.markFailed`가 500자로 절단하고 DB 컬럼도 `length=500`이며 `FfmpegResult`도 500자 이하를 보장한다. 서비스에 중복 절단은 두지 않는다. 예외 경로의 `errorMessage`는 스토리지 키·경로 노출을 피하려 예외 **클래스명만** 기록한다(상세는 서버 로그).
   - [검토] `finally` 정리 중 예외가 원래 예외를 덮지 않는지
+    - **확인(기록):** 정리 로직을 package-private `deleteWorkDir`로 분리하고 Mockito spy로 정리 실패를 결정적으로 재현해 READY/FAILED 결과가 가려지지 않음을 검증했다.
+  - **알려진 한계(기록):** 업로드 도중 실패한 트랙의 부분 업로드 객체(`hls/{uuid}/`)는 정리하지 않는다(`StorageService`에 prefix 삭제 API 없음). 인터럽트 플래그가 선 채로의 `FAILED` 기록은 최선 노력(로그만)이며, 이때 `PROCESSING`으로 남은 트랙은 T4-4 기동 복구가 정리한다.
 
 ### [ ] T4-4 `TranscodeRecoveryRunner`
 - **목표:** 기동 시 `updatedAt`이 `ffmpeg-timeout-minutes × 2` 이상 경과한 `PENDING/PROCESSING` 트랙만 `FAILED("INTERRUPTED_BY_RESTART")`로 갱신한다(자동 재변환 제외).

@@ -178,6 +178,107 @@ class HlsTranscodeServiceTest {
 
         assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
         assertThat(track.getErrorMessage()).isEqualTo("FFMPEG_TIMEOUT");
+        assertThat(workDir.resolve(trackId.toString())).doesNotExist();
+    }
+
+    @Test
+    @DisplayName("업로드 중 예외가 나면 FAILED로 기록하고 READY로 만들지 않으며 작업 디렉터리를 삭제한다")
+    void marksFailedWhenUploadFails() {
+        stubTrackFound();
+        when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.success(""));
+        doThrow(new IllegalStateException("upload boom"))
+                .when(storageService).uploadDirectoryRecursively(any(), anyString());
+
+        service.process(dto);
+
+        assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
+        assertThat(track.getErrorMessage()).isEqualTo("IllegalStateException");
+        assertThat(track.getHlsPlaylistKey()).isNull();
+        assertThat(workDir.resolve(trackId.toString())).doesNotExist();
+    }
+
+    @Test
+    @DisplayName("READY 저장이 실패하면 FAILED 기록을 시도하고 예외를 전파하지 않는다")
+    void marksFailedWhenMarkReadyFails() {
+        when(trackRepository.findById(trackId)).thenReturn(Optional.of(track));
+        when(trackRepository.save(any(Track.class)))
+                .thenAnswer(inv -> inv.getArgument(0))
+                .thenThrow(new IllegalStateException("db down"))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.success(""));
+
+        service.process(dto);
+
+        assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
+        assertThat(track.getErrorMessage()).isEqualTo("IllegalStateException");
+        assertThat(workDir.resolve(trackId.toString())).doesNotExist();
+    }
+
+    @Test
+    @DisplayName("예외 경로의 errorMessage에는 예외 메시지(스토리지 키 등)가 아닌 클래스명만 기록된다")
+    void recordsExceptionClassNameOnly() {
+        stubTrackFound();
+        doThrow(new IllegalStateException("fail original/2026/11/secret-key.mp3"))
+                .when(storageService).downloadObject(anyString(), any(Path.class));
+
+        service.process(dto);
+
+        assertThat(track.getErrorMessage()).isEqualTo("IllegalStateException");
+        assertThat(track.getErrorMessage()).doesNotContain("original/").doesNotContain("secret-key");
+    }
+
+    @Test
+    @DisplayName("러너가 반환한 FAILED 요약(시작 실패·중단 등)이 그대로 errorMessage에 저장된다")
+    void storesFfmpegStartFailureSummaryAsIs() {
+        stubTrackFound();
+        when(ffmpegCommandRunner.transcodeToHls(any(), any()))
+                .thenReturn(FfmpegResult.failed(-1, "FFMPEG_START_FAILED"));
+
+        service.process(dto);
+
+        assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
+        assertThat(track.getErrorMessage()).isEqualTo("FFMPEG_START_FAILED");
+    }
+
+    @Test
+    @DisplayName("FAILED 갱신 자체가 실패해도 예외를 전파하지 않고 작업 디렉터리를 삭제한다")
+    void swallowsFailureUpdateErrorAndStillCleansUp() {
+        when(trackRepository.findById(trackId)).thenReturn(Optional.of(track));
+        when(trackRepository.save(any(Track.class)))
+                .thenAnswer(inv -> inv.getArgument(0))
+                .thenThrow(new IllegalStateException("db down"));
+        when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.failed(1, "bad"));
+
+        service.process(dto);
+
+        assertThat(workDir.resolve(trackId.toString())).doesNotExist();
+    }
+
+    @Test
+    @DisplayName("정리(삭제) 실패가 성공 결과(READY)를 가리지 않고 예외도 전파하지 않는다")
+    void keepsReadyResultWhenCleanupFails() throws IOException {
+        stubTrackFound();
+        when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.success(""));
+        HlsTranscodeService spied = org.mockito.Mockito.spy(service);
+        doThrow(new IOException("locked")).when(spied).deleteWorkDir(any());
+
+        spied.process(dto);
+
+        assertThat(track.getStatus()).isEqualTo(TrackStatus.READY);
+    }
+
+    @Test
+    @DisplayName("정리(삭제) 실패가 실패 결과(FAILED)를 가리지 않고 예외도 전파하지 않는다")
+    void keepsOriginalResultWhenCleanupFails() throws IOException {
+        stubTrackFound();
+        when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.failed(1, "bad input"));
+        HlsTranscodeService spied = org.mockito.Mockito.spy(service);
+        doThrow(new IOException("locked")).when(spied).deleteWorkDir(any());
+
+        spied.process(dto);
+
+        assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
+        assertThat(track.getErrorMessage()).isEqualTo("bad input");
     }
 
     @Test
@@ -189,6 +290,7 @@ class HlsTranscodeServiceTest {
         service.process(dto);
 
         assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
+        assertThat(track.getErrorMessage()).isEqualTo("IllegalStateException");
         verifyNoInteractions(ffmpegCommandRunner);
         assertThat(workDir.resolve(trackId.toString())).doesNotExist();
     }

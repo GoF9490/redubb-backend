@@ -29,7 +29,8 @@ import org.springframework.util.FileSystemUtils;
  * PROCESSING 전이는 FFmpeg 시작 전에 커밋된다.
  * <p>
  * 성공이 아닌 결과(FAILED/TIMEOUT)나 예외는 FAILED로 기록하고, 임시 디렉터리는 항상 삭제한다.
- * 세부 메시지 규칙과 검증은 T4-3에서 보강한다.
+ * 예외 경로의 errorMessage에는 민감 정보(스토리지 키·경로) 노출을 피하려 예외 클래스명만 기록한다(상세는 서버 로그).
+ * 인터럽트 플래그가 선 채로 FAILED 기록을 시도하는 경우는 최선 노력이며 실패하면 로그만 남긴다.
  * FAILED 메시지에는 입력·출력 경로가 섞인 FFmpeg 로그가 들어갈 수 있으므로 API 응답(TrackResponse)에 노출하지 않는다.
  * <p>
  * MVP 한계: PENDING 가드는 같은 트랜잭션 안에서 읽은 상태 기준이며 낙관적 락이 없어,
@@ -170,9 +171,14 @@ public class HlsTranscodeService implements TranscodeProcessor {
     /** 작업 디렉터리 전체 삭제. 실패해도 원래 결과를 가리지 않는다. */
     private void cleanupWorkDir(UUID trackId) {
         try {
-            FileSystemUtils.deleteRecursively(Paths.get(audioProperties.workDir()).resolve(trackId.toString()));
+            deleteWorkDir(Paths.get(audioProperties.workDir()).resolve(trackId.toString()));
         } catch (Exception e) {
             log.warn("임시 작업 디렉터리 삭제에 실패했습니다. trackId={}", trackId, e);
         }
+    }
+
+    /** 디렉터리 재귀 삭제. 정리 실패를 테스트에서 재현할 수 있도록 package-private으로 분리했다. */
+    void deleteWorkDir(Path dir) throws IOException {
+        FileSystemUtils.deleteRecursively(dir);
     }
 }
