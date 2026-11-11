@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,7 +29,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -202,6 +206,110 @@ class MinioStorageServiceTest {
         assertThatThrownBy(() -> createService().createPresignedGetUrl("k", 60))
                 .isSameAs(bug)
                 .isNotInstanceOf(StorageException.class);
+    }
+
+    private List<PutObjectArgs> captureUploads(int expectedCount) throws Exception {
+        ArgumentCaptor<PutObjectArgs> captor = ArgumentCaptor.forClass(PutObjectArgs.class);
+        verify(minioClient, times(expectedCount)).putObject(captor.capture());
+        return captor.getAllValues();
+    }
+
+    @Test
+    @DisplayName("하위 폴더를 포함한 파일이 hls/{uuid}/<상대경로> 키로 업로드된다")
+    void uploadDirectoryRecursivelyBuildsKeysWithRelativePath(@TempDir Path tempDir) throws Exception {
+        Files.write(tempDir.resolve("index.m3u8"), new byte[]{1});
+        Files.createDirectories(tempDir.resolve("720p").resolve("sub"));
+        Files.write(tempDir.resolve("720p").resolve("seg0.ts"), new byte[]{2});
+        Files.write(tempDir.resolve("720p").resolve("sub").resolve("seg1.ts"), new byte[]{3});
+
+        createService().uploadDirectoryRecursively(tempDir, "hls/uuid-1");
+
+        assertThat(captureUploads(3)).extracting(PutObjectArgs::object)
+                .containsExactlyInAnyOrder(
+                        "hls/uuid-1/index.m3u8", "hls/uuid-1/720p/seg0.ts", "hls/uuid-1/720p/sub/seg1.ts")
+                .allSatisfy(key -> assertThat(key).doesNotContain("\\"));
+        assertThat(captureUploads(3)).extracting(PutObjectArgs::bucket).containsOnly(BUCKET);
+    }
+
+    @Test
+    @DisplayName("확장자별 Content-Type이 지정되고 대소문자는 무시하며 알 수 없는 확장자는 octet-stream이다")
+    void uploadDirectoryRecursivelyAppliesContentTypeByExtension(@TempDir Path tempDir) throws Exception {
+        Files.write(tempDir.resolve("index.m3u8"), new byte[]{1});
+        Files.write(tempDir.resolve("seg0.ts"), new byte[]{1});
+        Files.write(tempDir.resolve("SEG1.TS"), new byte[]{1});
+        Files.write(tempDir.resolve("data.bin"), new byte[]{1});
+
+        createService().uploadDirectoryRecursively(tempDir, "hls/u");
+
+        Map<String, String> contentTypes = new HashMap<>();
+        for (PutObjectArgs args : captureUploads(4)) {
+            contentTypes.put(args.object(), args.contentType());
+        }
+        assertThat(contentTypes)
+                .containsEntry("hls/u/index.m3u8", "application/vnd.apple.mpegurl")
+                .containsEntry("hls/u/seg0.ts", "video/mp2t")
+                .containsEntry("hls/u/SEG1.TS", "video/mp2t")
+                .containsEntry("hls/u/data.bin", "application/octet-stream");
+    }
+
+    @Test
+    @DisplayName("업로드가 하나라도 실패하면 예외가 전파되고 실패 이후 파일은 업로드되지 않는다")
+    void uploadDirectoryRecursivelyPropagatesFailureAndStops(@TempDir Path tempDir) throws Exception {
+        for (int i = 0; i < 4; i++) {
+            Files.write(tempDir.resolve("seg" + i + ".ts"), new byte[]{1});
+        }
+        int failingCall = 2;
+        AtomicInteger calls = new AtomicInteger();
+        IOException cause = new IOException("io");
+        when(minioClient.putObject(any(PutObjectArgs.class))).thenAnswer(invocation -> {
+            if (calls.incrementAndGet() == failingCall) {
+                throw cause;
+            }
+            return null;
+        });
+
+        assertThatThrownBy(() -> createService().uploadDirectoryRecursively(tempDir, "hls/u"))
+                .isInstanceOfSatisfying(StorageException.class, e -> {
+                    assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INTERNAL_ERROR);
+                    assertThat(e.getCause()).isSameAs(cause);
+                });
+
+        // 실패한 호출 번호까지만 putObject가 호출된다
+        assertThat(calls.get()).isEqualTo(failingCall);
+        verify(minioClient, times(failingCall)).putObject(any(PutObjectArgs.class));
+    }
+
+    @Test
+    @DisplayName("디렉터리가 없으면 경로를 노출하지 않는 StorageException이 발생하고 업로드하지 않는다")
+    void uploadDirectoryRecursivelyThrowsWhenDirectoryMissing(@TempDir Path tempDir) throws Exception {
+        Path missing = tempDir.resolve("missing-dir");
+
+        assertThatThrownBy(() -> createService().uploadDirectoryRecursively(missing, "hls/u"))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("업로드할 디렉터리가 없습니다")
+                .hasMessageNotContaining("missing-dir");
+        verify(minioClient, never()).putObject(any(PutObjectArgs.class));
+    }
+
+    @Test
+    @DisplayName("업로드할 파일이 없으면(빈 디렉터리·폴더만 존재) StorageException이 발생한다")
+    void uploadDirectoryRecursivelyThrowsWhenNoFiles(@TempDir Path tempDir) throws Exception {
+        Files.createDirectories(tempDir.resolve("empty-sub"));
+
+        assertThatThrownBy(() -> createService().uploadDirectoryRecursively(tempDir, "hls/u"))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("업로드할 파일이 없습니다");
+        verify(minioClient, never()).putObject(any(PutObjectArgs.class));
+    }
+
+    @Test
+    @DisplayName("keyPrefix 끝의 슬래시는 정규화되어 이중 슬래시 키가 생기지 않는다")
+    void uploadDirectoryRecursivelyNormalizesTrailingSlash(@TempDir Path tempDir) throws Exception {
+        Files.write(tempDir.resolve("index.m3u8"), new byte[]{1});
+
+        createService().uploadDirectoryRecursively(tempDir, "hls/u/");
+
+        assertThat(captureUploads(1)).extracting(PutObjectArgs::object).containsExactly("hls/u/index.m3u8");
     }
 
     @Test

@@ -14,9 +14,13 @@ import io.minio.http.Method;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -111,6 +115,50 @@ public class MinioStorageService implements StorageService {
         } catch (MinioException | IOException | GeneralSecurityException e) {
             throw fail("downloadObject", key, e);
         }
+    }
+
+    @Override
+    public void uploadDirectoryRecursively(Path localDir, String keyPrefix) {
+        if (!Files.isDirectory(localDir)) {
+            log.error("스토리지 작업 실패: operation=uploadDirectoryRecursively, 사유=디렉터리 없음");
+            throw new StorageException("uploadDirectoryRecursively: 업로드할 디렉터리가 없습니다");
+        }
+        String prefix = keyPrefix.endsWith("/") ? keyPrefix.substring(0, keyPrefix.length() - 1) : keyPrefix;
+
+        List<Path> files;
+        try (Stream<Path> walk = Files.walk(localDir)) {
+            files = walk.filter(Files::isRegularFile).sorted().toList();
+        } catch (IOException | UncheckedIOException e) {
+            throw fail("uploadDirectoryRecursively", prefix, e);
+        }
+        if (files.isEmpty()) {
+            log.error("스토리지 작업 실패: operation=uploadDirectoryRecursively, 사유=업로드할 파일 없음");
+            throw new StorageException("uploadDirectoryRecursively: 업로드할 파일이 없습니다");
+        }
+
+        for (Path file : files) {
+            uploadFile(buildObjectKey(prefix, localDir.relativize(file)), file, resolveContentType(file));
+        }
+    }
+
+    /** 상대경로의 각 name element를 '/'로 이어 OS 구분자(\)와 무관한 S3 키를 만든다. */
+    private String buildObjectKey(String prefix, Path relativePath) {
+        StringBuilder key = new StringBuilder(prefix);
+        for (Path element : relativePath) {
+            key.append('/').append(element);
+        }
+        return key.toString();
+    }
+
+    private String resolveContentType(Path file) {
+        String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (name.endsWith(".m3u8")) {
+            return "application/vnd.apple.mpegurl";
+        }
+        if (name.endsWith(".ts")) {
+            return "video/mp2t";
+        }
+        return "application/octet-stream";
     }
 
     private void putObject(String key, InputStream in, long size, String contentType)

@@ -172,14 +172,14 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [계획] 인터페이스 메서드는 `Resource`/`InputStream` 등 파일 객체를 이벤트로 넘기지 않는 형태로 설계
   - [검토] 버킷 정책 설정은 `storage-init` 소관 — 코드에 넣지 않는다
 
-### [ ] T2-3 `StorageService.uploadDirectoryRecursively`
+### [x] T2-3 `StorageService.uploadDirectoryRecursively`
 - **목표:** 로컬 디렉터리를 `Files.walk`로 순회해 `hls/{uuid}/` 하위에 그대로 업로드하고 확장자별 Content-Type(`.m3u8`, `.ts`)을 지정한다.
 - **선행:** T2-2
 - **완료 조건:**
-  - [ ] `@TempDir` 테스트: 하위 폴더 포함 파일의 S3 키가 `hls/{uuid}/<상대경로>`로 생성
-  - [ ] `.m3u8 → application/vnd.apple.mpegurl`, `.ts → video/mp2t` 검증
-  - [ ] 하나라도 업로드 실패 시 예외 전파
-  - [ ] `./gradlew test` 통과
+  - [x] `@TempDir` 테스트: 하위 폴더 포함 파일의 S3 키가 `hls/{uuid}/<상대경로>`로 생성
+  - [x] `.m3u8 → application/vnd.apple.mpegurl`, `.ts → video/mp2t` 검증
+  - [x] 하나라도 업로드 실패 시 예외 전파
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [구현] Windows에서 `\` 경로 구분자를 `/`로 변환
   - [검토] 알 수 없는 확장자의 기본 Content-Type(`application/octet-stream`)
