@@ -1,6 +1,7 @@
 package com.streaming.music.controller;
 
 import com.streaming.music.dto.request.TrackUploadRequest;
+import com.streaming.music.dto.response.DownloadInfo;
 import com.streaming.music.dto.response.StreamPlayResponse;
 import com.streaming.music.dto.response.TrackPageResponse;
 import com.streaming.music.dto.response.TrackResponse;
@@ -9,6 +10,7 @@ import com.streaming.music.entity.TrackStatus;
 import com.streaming.music.service.MediaUrlResolver;
 import com.streaming.music.service.TrackService;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -70,6 +72,21 @@ public class TrackController {
     @GetMapping("/{trackId}/play")
     public StreamPlayResponse getPlayInfo(@PathVariable UUID trackId) {
         return trackService.getPlayInfo(trackId, resolveUserId());
+    }
+
+    /**
+     * 원본 다운로드 지시. 본문 없이 200과 X-Accel-Redirect·Content-Disposition·Content-Type 헤더만 반환한다.
+     *
+     * <p>Nginx의 헤더 유지와 presigned 쿼리 보존의 실제 확인은 통합 테스트(T7-3) 소관이다.
+     */
+    @GetMapping("/{trackId}/download")
+    public ResponseEntity<Void> getDownloadInfo(@PathVariable UUID trackId) {
+        DownloadInfo info = trackService.getDownloadInfo(trackId, resolveUserId());
+        return ResponseEntity.ok()
+                .header("X-Accel-Redirect", info.xAccelRedirectUri())
+                .header(HttpHeaders.CONTENT_DISPOSITION, info.contentDisposition())
+                .header(HttpHeaders.CONTENT_TYPE, info.contentType())
+                .build();
     }
 
     /**

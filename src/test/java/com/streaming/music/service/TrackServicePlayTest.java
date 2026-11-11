@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.config.properties.StorageProperties;
 import com.streaming.music.dto.response.StreamPlayResponse;
 import com.streaming.music.entity.ActionType;
 import com.streaming.music.entity.Track;
@@ -60,7 +61,8 @@ class TrackServicePlayTest {
         Clock clock = Clock.fixed(Instant.parse("2026-03-05T10:00:00Z"), ZoneOffset.UTC);
         trackService = new TrackService(storageService, audioMetadataValidator, transcodeTaskDispatcher,
                 trackRepository, userRepository, audioProperties, clock, mock(PlatformTransactionManager.class),
-                mediaUrlResolver, playbackLogService);
+                mediaUrlResolver, playbackLogService,
+                new StorageProperties("http://rustfs:9000", "us-east-1", "ak", "sk", "audio-storage", 60));
     }
 
     private Track buildTrack(TrackStatus status, String hlsPlaylistKey, String artworkKey) {

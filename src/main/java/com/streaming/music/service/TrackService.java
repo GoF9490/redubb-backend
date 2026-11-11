@@ -1,6 +1,8 @@
 package com.streaming.music.service;
 
 import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.config.properties.StorageProperties;
+import com.streaming.music.dto.response.DownloadInfo;
 import com.streaming.music.dto.event.TranscodeEventDto;
 import com.streaming.music.dto.request.TrackUploadRequest;
 import com.streaming.music.dto.response.StreamPlayResponse;
@@ -82,6 +84,7 @@ public class TrackService {
     private final TransactionTemplate transactionTemplate;
     private final MediaUrlResolver mediaUrlResolver;
     private final PlaybackLogService playbackLogService;
+    private final StorageProperties storageProperties;
 
     public TrackService(StorageService storageService,
                         AudioMetadataValidator audioMetadataValidator,
@@ -92,7 +95,9 @@ public class TrackService {
                         Clock clock,
                         PlatformTransactionManager transactionManager,
                         MediaUrlResolver mediaUrlResolver,
-                        PlaybackLogService playbackLogService) {
+                        PlaybackLogService playbackLogService,
+                        StorageProperties storageProperties) {
+        this.storageProperties = storageProperties;
         this.mediaUrlResolver = mediaUrlResolver;
         this.playbackLogService = playbackLogService;
         this.storageService = storageService;
@@ -244,6 +249,36 @@ public class TrackService {
         StreamPlayResponse response = StreamPlayResponse.from(track, mediaUrlResolver);
         playbackLogService.recordLog(track, userId, ActionType.STREAM);
         return response;
+    }
+
+    /**
+     * 원본 다운로드 지시 정보를 반환하고 DOWNLOAD 이력을 기록한다 (PRD-05 §7.1, §7.1.2, §7.1.3).
+     *
+     * <p>순서: 조회(없으면 404) → presigned URL 생성 → 내부 경로 변환 → 헤더 조립 → 이력 기록(마지막).
+     * 원본은 PENDING부터 존재하므로 status와 무관하게 허용한다. 실패 경로(404, presign 실패, URL 형식 오류)에서는
+     * 이력을 기록하지 않는다. {@code @Transactional}을 두지 않는 이유는 {@link #getPlayInfo}와 같다.
+     * presigned URL·redirect 값에는 서명이 있으므로 로그에 남기지 않는다.
+     *
+     * @param userId 인증 사용자 ID (비로그인이면 null)
+     * @throws IllegalStateException presigned URL이 path-style 전제를 벗어난 경우(500)
+     */
+    public DownloadInfo getDownloadInfo(UUID trackId, Long userId) {
+        Track track = getTrack(trackId);
+        String presignedUrl = storageService.createPresignedGetUrl(
+                track.getOriginalS3Key(), storageProperties.presignedExpirySeconds());
+        String redirectUri;
+        try {
+            redirectUri = InternalRedirectPathConverter.toInternalRedirectUri(
+                    presignedUrl, storageProperties.bucketName());
+        } catch (IllegalStateException e) {
+            throw new IllegalStateException("다운로드 경로 변환에 실패했습니다. trackId=" + trackId, e);
+        }
+        DownloadInfo info = new DownloadInfo(
+                redirectUri,
+                ContentDispositionBuilder.build(track.getOriginalFilename(), trackId, track.getFileExtension()),
+                track.getMimeType());
+        playbackLogService.recordLog(track, userId, ActionType.DOWNLOAD);
+        return info;
     }
 
     private Track saveTrackAndDispatch(UUID trackId, Long userId, AudioMetadata metadata, String originalFilename,

@@ -398,21 +398,25 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [검토] `PlaybackLogService`가 `TransactionTemplate`(REQUIRES_NEW)로 동작하므로, 호출자(`TrackService`)가 `readOnly` 트랜잭션이어도 이력이 저장되고 저장 실패 시 `UnexpectedRollbackException`이 나지 않는지 `@SpringBootTest`(H2) 통합 테스트로 확인한다(Mockito로는 검증 불가).
     - **확인(기록, `PlayInfoIntegrationTest`):** 익명(`user=null`)·로그인(`user` 연결) `STREAM` 이력이 실제로 저장된다. `readOnly` `TransactionTemplate` 안에서 `recordLog`를 호출해도 이력이 저장되고 커밋 시 예외가 없다. 존재하지 않는 `userId`(`getReferenceById` → FK 위반)에서도 `getPlayInfo`는 정상 응답하고 이력은 0건이며 `UnexpectedRollbackException`은 발생하지 않는다(readOnly 안에서도 동일). 통합 테스트 DB는 `ddl-auto=update`라 `ON DELETE CASCADE`가 없어 기반 클래스가 `PlaybackLog`를 먼저 삭제한다.
 
-### [ ] T5-4 원본 다운로드 지시
+### [x] T5-4 원본 다운로드 지시
 - **목표:** `getDownloadInfo`와 `GET /api/tracks/{id}/download` — presigned URL을 `X-Accel-Redirect`로 변환하고 RFC 5987 `Content-Disposition`을 구성한다.
 - **선행:** T5-1, T2-2, T1-4
 - **완료 조건:**
-  - [ ] `TrackServiceTest` 다운로드 ①: presigned URL 스텁에서 `/internal-storage/original/...?{서명 쿼리}`를 **쿼리 재인코딩 없이** 생성
-  - [ ] 한글 파일명 → `filename*=UTF-8''<퍼센트 인코딩>`과 ASCII 대체 `filename` 동시 포함
-  - [ ] `PENDING` 상태에서도 다운로드 허용, 없는 트랙 `404`
-  - [ ] 성공 시 `DOWNLOAD` 이력 1회 기록
-  - [ ] 컨트롤러 테스트: `200`, Body 비어 있음, `X-Accel-Redirect`·`Content-Disposition`·`Content-Type` 헤더 검증
-  - [ ] `./gradlew test` 통과
+  - [x] `TrackServiceTest` 다운로드 ①: presigned URL 스텁에서 `/internal-storage/original/...?{서명 쿼리}`를 **쿼리 재인코딩 없이** 생성
+  - [x] 한글 파일명 → `filename*=UTF-8''<퍼센트 인코딩>`과 ASCII 대체 `filename` 동시 포함
+  - [x] `PENDING` 상태에서도 다운로드 허용, 없는 트랙 `404`
+  - [x] 성공 시 `DOWNLOAD` 이력 1회 기록
+  - [x] 컨트롤러 테스트: `200`, Body 비어 있음, `X-Accel-Redirect`·`Content-Disposition`·`Content-Type` 헤더 검증
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [탐색] PRD-05 §7.1.2의 경로 분리 규칙(`/{bucket}/` 이후 경로 + 원본 쿼리)
+    - **구현(기록):** `InternalRedirectPathConverter`가 `java.net.URI` 재조립 없이 문자열로 `/{bucket}/` 접두를 제거하고 `/internal-storage/`를 붙이며 쿼리(`?`부터 끝까지)를 한 글자도 바꾸지 않는다. 실제 `MinioClient`가 서명한 URL로 쿼리가 바이트 단위로 보존됨을 검증했다. 전제는 path-style(`{scheme}://{host}[:{port}]/{bucket}/{key}?{query}`, endpoint에 경로 접두 없음)이며 깨지면 `IllegalStateException`(500, 메시지에 URL·서명 없음).
   - [구현] `Content-Disposition`의 따옴표·줄바꿈·특수문자(헤더 인젝션) 이스케이프
+    - **구현(기록):** `ContentDispositionBuilder`가 제어문자(CR/LF 포함)를 제거하고 경로 구분자 앞부분을 잘라 255자로 절단한 뒤, ASCII 대체(`" \ ; %`와 비ASCII는 `_`)와 RFC 5987 `filename*`(attr-char 외 대문자 `%XX`, `URLEncoder` 미사용)를 함께 만든다. 확장자 앞 본문에 영문·숫자가 없으면 ASCII 대체는 `track-{uuid}.{ext}`로 대체한다. 정확값 테스트: `"한글 파일.mp3"` → `filename*=UTF-8''%ED%95%9C%EA%B8%80%20%ED%8C%8C%EC%9D%BC.mp3`.
   - [검토] Nginx가 헤더를 유지하는지는 통합 테스트 소관(PRD.md §7.1) — 본 태스크 범위 밖
+    - **이관(기록):** `X-Accel-Redirect`·`Content-Disposition`·`Content-Type` 유지와 presigned 쿼리가 Nginx를 통과해도 보존되는지는 **T7-3 스모크/통합 테스트에서 확인**한다.
   - [검토] `DOWNLOAD` 이력도 T5-3과 동일하게 `PlaybackLogService`(REQUIRES_NEW) 경유이므로, 호출자 트랜잭션 영향 없이 저장되는지 통합 테스트(H2)로 함께 확인한다.
+    - **확인(기록, `DownloadIntegrationTest`):** 익명·로그인 `DOWNLOAD` 이력 저장, 존재하지 않는 `userId`(readOnly 호출자 포함)에서도 정상 응답과 이력 0건, presign 실패 시 예외 전파와 이력 0건. `TrackService` 생성자 끝에 `StorageProperties`가 추가되었다.
 
 ---
 

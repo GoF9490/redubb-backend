@@ -11,11 +11,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.streaming.music.config.SecurityConfig;
 import com.streaming.music.dto.request.TrackUploadRequest;
+import com.streaming.music.dto.response.DownloadInfo;
 import com.streaming.music.dto.response.StreamPlayResponse;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
@@ -333,6 +336,37 @@ class TrackControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("TRACK_NOT_FOUND"));
         mockMvc.perform(get("/api/tracks/not-a-uuid/play"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("다운로드는 200, 빈 본문, X-Accel-Redirect·Content-Disposition·Content-Type 헤더를 반환한다")
+    void returnDownloadHeaders() throws Exception {
+        UUID trackId = UUID.randomUUID();
+        String redirect = "/internal-storage/original/2026/11/k.mp3?X-Amz-Signature=sig%2F1";
+        String disposition = "attachment; filename=\"a.mp3\"; filename*=UTF-8''a.mp3";
+        when(trackService.getDownloadInfo(eq(trackId), isNull()))
+                .thenReturn(new DownloadInfo(redirect, disposition, "audio/mpeg"));
+
+        mockMvc.perform(get("/api/tracks/{trackId}/download", trackId))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""))
+                .andExpect(header().string("X-Accel-Redirect", redirect))
+                .andExpect(header().string("Content-Disposition", disposition))
+                .andExpect(header().string("Content-Type", "audio/mpeg"));
+    }
+
+    @Test
+    @DisplayName("없는 트랙의 다운로드는 404, 잘못된 UUID는 400이다")
+    void rejectDownloadOfMissingOrInvalidTrack() throws Exception {
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getDownloadInfo(eq(trackId), any())).thenThrow(new TrackNotFoundException());
+
+        mockMvc.perform(get("/api/tracks/{trackId}/download", trackId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("TRACK_NOT_FOUND"));
+        mockMvc.perform(get("/api/tracks/not-a-uuid/download"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
     }

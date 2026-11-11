@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.config.properties.StorageProperties;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
 import com.streaming.music.exception.InvalidRequestException;
@@ -65,7 +66,8 @@ class TrackQueryServiceTest {
         Clock clock = Clock.fixed(Instant.parse("2026-03-05T10:00:00Z"), ZoneOffset.UTC);
         trackService = new TrackService(storageService, audioMetadataValidator, transcodeTaskDispatcher,
                 trackRepository, userRepository, audioProperties, clock, transactionManager,
-                mediaUrlResolver, playbackLogService);
+                mediaUrlResolver, playbackLogService,
+                new StorageProperties("http://rustfs:9000", "us-east-1", "ak", "sk", "audio-storage", 60));
     }
 
     private Page<Track> emptyPage() {

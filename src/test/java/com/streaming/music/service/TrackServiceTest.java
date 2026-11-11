@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.config.properties.StorageProperties;
 import com.streaming.music.dto.event.TranscodeEventDto;
 import com.streaming.music.dto.request.TrackUploadRequest;
 import com.streaming.music.entity.Track;
@@ -85,7 +86,8 @@ class TrackServiceTest {
         PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
         trackService = new TrackService(storageService, audioMetadataValidator, transcodeTaskDispatcher,
                 trackRepository, userRepository, audioProperties, clock, transactionManager,
-                mediaUrlResolver, playbackLogService);
+                mediaUrlResolver, playbackLogService,
+                new StorageProperties("http://rustfs:9000", "us-east-1", "ak", "sk", "audio-storage", 60));
     }
 
     private MockMultipartFile audioFile() {
