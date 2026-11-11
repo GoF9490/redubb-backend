@@ -1,4 +1,6 @@
-# \[PRD\] 01\_전체\_구조\_및\_아키텍처 (v2.3 - RustFS 스토리지 전환 확정안)
+# \[PRD\] 01\_전체\_구조\_및\_아키텍처 (v2.4 - 문서 간 정합성 보완안)
+
+> **v2.4 변경 요약 (2026-11-11):** 이벤트 DTO 필드명 `originalS3Key` 통일, 원본 다운로드 presigned 방식 전환, 스토리지 접근 정책(루프백 바인딩·경로별 익명 읽기) 및 플랫폼 분리 대비 원칙 추가, 서버 명칭 `web-server-1/2` 통일. 상세는 `PRD.md` §7 참조.
 
 ## 1. 개요 및 목적
 
@@ -13,7 +15,7 @@
 
 1. **클라이언트-서버 및 6대 논리 섹션 분리:** 전체 시스템을 **웹페이지(Web)**, **모바일 앱(Mobile App)**, **리버스 프록시 서버(Nginx)**, **백엔드 서버 클러스터(Backend)**, **음원 서버(RustFS Storage)**, 데이터베이스(PostgreSQL)의 6개 핵심 섹션으로 분리하여 구성합니다.
 
-2. **무상태(Stateless) 다중 백엔드 클러스터:** 백엔드 API 서버(`web1`, `web2`)는 인메모리 세션(`HttpSession`)을 배제하고 무상태(Stateless) 구조로 동작하여, Nginx 로드 밸런서가 어느 노드로 트래픽을 분산하더라도 동일한 정합성을 유지합니다.
+2. **무상태(Stateless) 다중 백엔드 클러스터:** 백엔드 API 서버(`web-server-1`, `web-server-2`, 약칭 `web1`/`web2`)는 인메모리 세션(`HttpSession`)을 배제하고(OAuth2 로그인 인가 요청 state도 쿠키에 저장) 무상태(Stateless) 구조로 동작하여, Nginx 로드 밸런서가 어느 노드로 트래픽을 분산하더라도 동일한 정합성을 유지합니다.
 
 3. **API 트래픽과 미디어(청크/원본) 바이트 전송의 격리:** 실시간 스트리밍 청크(`.ts`) 전송 및 대용량 원본 파일 다운로드 시 발생하는 대규모 I/O가 백엔드 애플리케이션(톰캣) 스레드를 점유하지 않도록, 실제 파일 바이트 전송은 **Nginx ➔ 음원 서버(RustFS)** 구간에서 전담 처리합니다.
 
@@ -50,9 +52,9 @@
 
 | 시나리오 | 단계별 데이터 및 트래픽 흐름 | 핵심 아키텍처 포인트 | 
 | ----- | ----- | ----- | 
-| **A. 음원 업로드 및 비동기 청크 분할** | 1\. 클라이언트(Web/App)가 `POST /api/tracks/upload`로 음원 파일(`MultipartFile`) 및 메타데이터 전송  2\. **Nginx**가 용량 확인 후 가용 백엔드 서버(`web1` 또는 `web2`)로 전달  3\. **백엔드 서버**가 파일 기본 검증 후 RustFS(`original/`)에 원본을 저장하고, **DB**에 `PENDING` 상태로 기록한 뒤 내부 변환 이벤트를 발행하고 클라이언트에 즉시 응답  4\. 백엔드 내부 전용 비동기 스레드(`@Async`)가 `{ trackId, s3Key }` 정보를 받아 **RustFS**에서 원본을 읽고, **FFmpeg**로 `.m3u8` 및 `.ts` 청크를 생성하여 RustFS(`hls/`)에 재귀 업로드 후 **DB** 상태를 `READY`로 갱신 | 멀티파트 단일 API로 빠르게 구현하되, 대용량 WAV 변환 시간 동안 HTTP 응답이 지연되지 않도록 **업로드 수신과 FFmpeg 인코딩을 비동기 분리** | 
+| **A. 음원 업로드 및 비동기 청크 분할** | 1\. 클라이언트(Web/App)가 `POST /api/tracks/upload`로 음원 파일(`MultipartFile`) 및 메타데이터 전송  2\. **Nginx**가 용량 확인 후 가용 백엔드 서버(`web1` 또는 `web2`)로 전달  3\. **백엔드 서버**가 파일 기본 검증 후 RustFS(`original/`)에 원본을 저장하고, **DB**에 `PENDING` 상태로 기록한 뒤 내부 변환 이벤트를 발행하고 클라이언트에 즉시 응답  4\. 백엔드 내부 전용 비동기 스레드(`@Async`)가 업로드 트랜잭션 커밋 이후 `{ trackId, originalS3Key }` 정보를 받아 **RustFS**에서 원본을 읽고, **FFmpeg**로 `.m3u8` 및 `.ts` 청크를 생성하여 RustFS(`hls/`)에 재귀 업로드 후 **DB** 상태를 `READY`로 갱신 | 멀티파트 단일 API로 빠르게 구현하되, 대용량 WAV 변환 시간 동안 HTTP 응답이 지연되지 않도록 **업로드 수신과 FFmpeg 인코딩을 비동기 분리** | 
 | **B. 실시간 청크 스트리밍 재생** | 1\. **클라이언트**가 재생 시작 전 백엔드의 `GET /api/tracks/{id}/play`를 호출하여 스트리밍 매니페스트 진입점 경로(`/stream/{track_uuid}/index.m3u8`) 획득  2\. 플레이어가 **Nginx(`/stream/{track_uuid}/index.m3u8`)** 요청 ➔ **RustFS** 다이렉트 프록시 응답  3\. 플레이어가 매니페스트에 정의된 6초 단위 청크(`/stream/{track_uuid}/chunk_000.ts` 등)를 순차 요청 ➔ **Nginx 프록시 캐시** 또는 **RustFS**에서 바이트 스트림 즉시 전송 | 백엔드 스레드는 최초 진입점 URL 조회만 처리하고, **반복적인 오디오 청크 전송은 Nginx-RustFS 구간에서 직접 처리** | 
-| **C. 음원 원본 파일 다운로드** | 1\. **클라이언트**가 백엔드 다운로드 API(`GET /api/tracks/{id}/download`) 호출  2\. **백엔드 서버**가 DB에서 원본 저장 경로를 조회한 뒤, 본문(Body) 없이 응답 헤더에 `X-Accel-Redirect: /internal-storage/original/...` 및 `Content-Disposition: attachment`를 담아 반환  3\. **Nginx**가 해당 헤더를 감지하여 내부적으로 **RustFS**에서 원본 파일을 읽어 클라이언트에게 직접 다운로드 전송 | 백엔드 메모리/스레드를 소모하지 않으면서도 **모든 다운로드 요청의 첫 진입점을 백엔드 API로 고정** | 
+| **C. 음원 원본 파일 다운로드** | 1\. **클라이언트**가 백엔드 다운로드 API(`GET /api/tracks/{id}/download`) 호출  2\. **백엔드 서버**가 DB에서 원본 저장 경로를 조회하고 짧은 유효기간(기본 60초)의 **RustFS presigned URL**을 생성한 뒤, 본문(Body) 없이 응답 헤더에 `X-Accel-Redirect: /internal-storage/original/...?X-Amz-...`(presigned 경로+서명 쿼리) 및 `Content-Disposition: attachment`를 담아 반환  3\. **Nginx**가 해당 헤더를 감지하여 내부적으로 **RustFS**에 서명된 요청을 보내 원본 파일을 읽어 클라이언트에게 직접 다운로드 전송 | 백엔드 메모리/스레드를 소모하지 않으면서도 **모든 다운로드 요청의 첫 진입점을 백엔드 API로 고정**. 원본(`original/`)은 익명 읽기가 금지되어 서명 없이는 RustFS에서도 조회 불가 | 
 
 ## 5. 확장성 및 보안 대비 상세 설계 명세 (확정된 4대 정책 반영)
 
@@ -62,9 +64,9 @@ MVP에서는 컨테이너 관리 복잡도를 낮추기 위해 별도 워커 서
 
 1. **전용 스레드 풀(Thread Pool) 동시성 제한:** FFmpeg 프로세스가 백엔드 CPU를 독점하여 일반 API가 마비되는 것을 막기 위해, 변환 전용 `ThreadPoolTaskExecutor`의 동시 실행 스레드 수(`corePoolSize` / `maxPoolSize`)를 **인스턴스당 1\~2개**로 제한하고 나머지는 큐에서 순차 대기시킵니다.
 
-2. **메모리 파일 전달 금지 및 식별자 DTO(`{ trackId, s3Key }`) 전달:** 같은 서버 내부라도 메모리의 `MultipartFile`이나 로컬 임시 경로를 비동기 스레드로 직접 넘기지 않습니다. 반드시 업로드 서비스가 RustFS `original/`에 원본 저장을 완료한 뒤, **식별자 데이터 객체(`TranscodeEventDto: { trackId, s3Key }`)만 변환 모듈로 전달**합니다.
+2. **메모리 파일 전달 금지 및 식별자 DTO(`{ trackId, originalS3Key }`) 전달:** 같은 서버 내부라도 메모리의 `MultipartFile`이나 로컬 임시 경로를 비동기 스레드로 직접 넘기지 않습니다. 반드시 업로드 서비스가 RustFS `original/`에 원본 저장을 완료한 뒤, **식별자 데이터 객체(`TranscodeEventDto: { trackId, originalS3Key }`)만 변환 모듈로 전달**합니다.
 
-3. **호출부와 실행부의 인터페이스 분리:** 업로드 서비스는 변환 로직을 직접 호출하지 않고 이벤트 발행 인터페이스(`ApplicationEventPublisher` 또는 `TranscodeTaskDispatcher`)만 호출하며, 실행부는 `@Async @EventListener`로 수신합니다. (추후 외부 브로커 및 별도 워커로 분리 시 핵심 비즈니스 코드 수정 없이 어댑터만 교체 가능)
+3. **호출부와 실행부의 인터페이스 분리:** 업로드 서비스는 변환 로직을 직접 호출하지 않고 이벤트 발행 인터페이스(`ApplicationEventPublisher` 또는 `TranscodeTaskDispatcher`)만 호출하며, 실행부는 `@Async @TransactionalEventListener(phase = AFTER_COMMIT)`로 수신합니다(커밋 전 조회 경합 방지). (추후 외부 브로커 및 별도 워커로 분리 시 핵심 비즈니스 코드 수정 없이 어댑터만 교체 가능)
 
 ### 5.2. \[정책 3\] 단일 표준 음질(Single Bitrate) 규격 및 다중 음질(ABR) 확장 대비 구조
 
@@ -93,7 +95,10 @@ MVP에서는 컨테이너 관리 복잡도를 낮추기 위해 별도 워커 서
 | ----- | ----- | ----- | 
 | **업로드 및 메타데이터 API**  (`/api/tracks/**`) | Spring Security `SecurityFilterChain`에서 모든 엔드포인트 `permitAll()` 허용 | Spring Security 설정에서 경로별 `.authenticated()` 또는 `.hasRole()` 조건만 활성화 | 
 | **원본 파일 다운로드**  (`GET /api/tracks/{id}/download`) | `permitAll()`로 개방하되, 클라이언트는 반드시 백엔드 API를 호출하고 백엔드가 `X-Accel-Redirect` 헤더로 Nginx-RustFS 다운로드를 트리거 | 진입점이 백엔드 API이므로 **Spring Security에서 `/api/tracks/*/download` 경로만 권한 제한**하면 즉시 통제 완료 | 
-| **실시간 HLS 스트리밍**  (`GET /api/tracks/{id}/play` 및 `/stream/*`) | 백엔드 재생 진입점 조회 API(`/play`)와 Nginx `/stream/*` 프록시 경로 모두 전체 개방 | **1단계:** 백엔드 재생 정보 조회 API(`/api/tracks/*/play`)를 Spring Security로 통제  **2단계(강화 시):** Nginx `/stream/*` 블록에 `auth_request /api/auth/check;` 1줄을 추가하여 Spring Security 토큰 검증 API와 연동 | 
+| **실시간 HLS 스트리밍**  (`GET /api/tracks/{id}/play` 및 `/stream/*`) | 백엔드 재생 진입점 조회 API(`/play`)와 Nginx `/stream/*` 프록시 경로 모두 전체 개방 | **1단계:** 백엔드 재생 정보 조회 API(`/api/tracks/*/play`)를 Spring Security로 통제  **2단계(강화 시):** Nginx `/stream/*` 블록에 `auth_request /api/auth/check;` 1줄을 추가하여 Spring Security 토큰 검증 API와 연동 (`/api/auth/check`는 MVP 범위 밖이며 2단계 전환 시 PRD-05에 추가) |
+
+* **스토리지 접근 정책 (v2.4 보완):** RustFS(`9000`/`9001`)와 PostgreSQL(`5432`) 호스트 포트는 `127.0.0.1` 루프백에만 바인딩하여 외부 네트워크 노출을 차단합니다. 버킷 익명 읽기(`s3:GetObject`)는 Nginx 다이렉트 프록시 대상인 `hls/*`, `artwork/*`에만 허용하고, `original/*`은 백엔드가 발급한 presigned URL로만 접근합니다(PRD-06 §3, PRD-05 §7.1.2).
+* **플랫폼 분리 대비:** 각 섹션 간 호스트·URL(DB, 스토리지 엔드포인트, Nginx upstream, 미디어 공개 URL, CORS 오리진)은 모두 환경변수로 주입하여, 추후 웹·DB·스토리지가 별도 플랫폼으로 분리되어도 코드 수정 없이 설정 변경만으로 대응합니다(PRD.md §6). 
 
 ## 6. 섹션별 개발 순서 및 후속 상세 PRD 작성 로드맵
 

@@ -56,7 +56,7 @@ Windows에서는 `gradlew.bat`(PowerShell) 또는 `./gradlew`(Git Bash)를 사�
 
 ## 현재 코드와 PRD 간 차이
 
-- `build.gradle.kts`에는 PRD-05 §3.2에 명시된 라이브러리(AWS S3 SDK, Tika, JAudioTagger, JWT 등)가 아직 없다. 구현 시 PRD 명세를 확인하고 추가한다.
+- `build.gradle.kts`에는 PRD-05 §3.2에 명시된 라이브러리(MinIO S3 SDK `io.minio:minio`, Tika, JAudioTagger, JJWT, Validation 등)가 아직 없다. 구현 시 PRD 명세를 확인하고 추가한다.
 - `application.yaml`은 현재 H2 인메모리 DB 설정만 있다. PRD상 운영 DB는 PostgreSQL이다 (PRD-07).
 
 ## 코딩 규칙

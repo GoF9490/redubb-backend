@@ -1,5 +1,7 @@
 # [PRD-02] 웹페이지 (Web Frontend) 상세 설계
 
+> **변경 요약 (2026-11-11 백엔드 계약 정합):** 로그인 진입 시 `redirect_uri` 파라미터 지정, `/auth/callback?token={jwt}` 토큰 수신·저장·Bearer 헤더 사용 규칙, 변환 미완료(`409`) 처리 및 상태 폴링, "MinIO" 표기를 "RustFS"로 정정. 상세는 `PRD.md` §7 참조.
+
 ## 1. 개요 및 기술 스택
 본 문서는 음원 스트리밍 서비스 MVP의 웹 클라이언트 화면인 **웹페이지(Web Frontend)**의 UI/UX 레이아웃, 동적 DOM 및 Ajax 통신 구조, HLS 실시간 스트리밍 플레이어 연동, 그리고 도커 Nginx 컨테이너 기반 정적 배포 절차를 정의합니다.
 
@@ -27,11 +29,14 @@
 1. **비로그인 상태 (로그인 버튼 및 Google 로그인 모달):**
    * 화면 우측 상단에 **`[로그인]`** 버튼이 표시됩니다.
    * `[로그인]` 버튼을 클릭하면 화면 중앙에 배경이 어두워진(Backdrop) 자그마한 **로그인 모달창**이 뜹니다.
-   * 모달창 중앙에는 구글 로고와 함께 **`"Sign with Google"`** 버튼 하나만 깔끔하게 배치되며, 이 버튼을 클릭하면 백엔드의 Google OAuth2 인증 진입점(`GET /oauth2/authorization/google`)으로 이동하여 로그인을 수행합니다.
+   * 모달창 중앙에는 구글 로고와 함께 **`"Sign with Google"`** 버튼 하나만 깔끔하게 배치되며, 이 버튼을 클릭하면 백엔드의 Google OAuth2 인증 진입점(`GET /oauth2/authorization/google?redirect_uri=http://localhost/auth/callback`)으로 페이지 이동(`window.location.href`)하여 로그인을 수행합니다. (`redirect_uri`는 백엔드 화이트리스트 `OAUTH2_ALLOWED_REDIRECT_URIS`에 등록된 값과 완전히 일치해야 합니다. PRD-05 §6.1)
+   * **토큰 수신 (`/auth/callback` SPA 라우트):** 로그인 성공 시 백엔드가 `http://localhost/auth/callback?token={jwt}`로 리다이렉트합니다. 콜백 화면은 쿼리의 `token`을 `localStorage`에 저장하고, `history.replaceState`로 주소창에서 토큰을 제거한 뒤 메인(`/`)으로 이동합니다. 실패 시에는 `?error={code}`가 전달되므로 에러 토스트를 표시합니다.
+   * **토큰 사용:** 이후 모든 API 요청(axios 인터셉터)에 `Authorization: Bearer {jwt}` 헤더를 붙입니다. `GET /api/auth/me`가 `401`을 반환하면 토큰을 삭제하고 비로그인 상태로 전환합니다.
 2. **로그인 완료 상태 (구글 프로필 이미지 및 업로드 팝오버 메뉴):**
    * Google OAuth2 로그인이 완료되면 우측 상단의 `[로그인]` 버튼 자리에 구글 계정에서 받아온 **사용자의 프로필 이미지(`profileImageUrl`)가 원형 아바타 형태로 표기**됩니다.
    * 해당 프로필 이미지를 클릭하면 이미지 바로 아래에 작은 **팝오버(Popover) 드롭다운 메뉴**가 열리며 **`"업로드"`** 옵션(및 `"로그아웃"` 옵션)이 표시됩니다.
    * 팝오버에서 **`"업로드"`**를 클릭하면 음악 파일을 등록할 수 있는 **음원 업로드 모달창**이 화면 중앙에 열립니다.
+   * **`"로그아웃"`** 클릭 시 서버 호출 없이 `localStorage`의 토큰을 삭제하고 비로그인 상태로 전환합니다(무상태 JWT, PRD-05 §6.1).
 
 ### 2.2. 음원 업로드 모달 (메타데이터 자동 추출 및 수정 저장)
 1. **파일 선택 및 로컬 메타데이터 자동 완성:**
@@ -54,7 +59,7 @@
      * 우측 끝: **원본 파일 다운로드(`⬇`) 아이콘 버튼** — 클릭 시 이벤트 버블링(`e.stopPropagation()`)을 막아 재생을 건드리지 않고 백엔드 원본 다운로드 주소(`GET /api/tracks/{trackId}/download`)를 호출하여 원본 파일(`.mp3`, `.wav`)을 즉시 다운로드합니다.
 
 ### 2.4. 하단 고정 노래 재생 UI 영역 (Bottom Player Bar)
-리스트에서 변환이 완료된(`READY`) 노래 행을 클릭하면, 화면 최하단에 고정된 플레이어 바가 활성화되며 스트리밍 재생을 시작합니다.
+리스트에서 변환이 완료된(`READY`) 노래 행을 클릭하면, 화면 최하단에 고정된 플레이어 바가 활성화되며 스트리밍 재생을 시작합니다. 변환이 끝나지 않은 곡은 `GET /api/tracks/{id}/play`가 `409 TRACK_NOT_READY`를 반환하므로 `[변환 중...]` 안내를 표시하며, `[변환 중...]` 뱃지가 있는 곡은 `GET /api/tracks/{id}`를 주기적으로(예: 5초) 조회하여 `READY`/`FAILED` 전환을 반영합니다. (에러 응답 형식 `{ code, message, timestamp }`는 PRD-05 §7.2 참조)
 
 | 영역 구분 | 구현 컴포넌트 및 상세 동작 방식 |
 | :--- | :--- |
@@ -78,6 +83,7 @@ frontend/
     ├── components/
     │   ├── Header.jsx           # 로고, 검색창, 우측 상단 [로그인] 버튼 / 구글 프로필 이미지 & 팝오버
     │   ├── GoogleLoginModal.jsx # 중앙 "Sign with Google" 단일 버튼 모달
+    │   ├── OAuth2Callback.jsx   # /auth/callback?token={jwt} 수신 → localStorage 저장 후 메인 이동
     │   ├── UploadModal.jsx      # 파일 선택 시 태그/앨범자켓 자동 추출 및 수정 업로드 모달
     │   ├── TrackList.jsx        # 업로드 최신순 동적 리스트 및 행별 원본 다운로드 버튼
     │   └── BottomPlayerBar.jsx  # 하단 고정 재생/일시정지, 진행 슬라이더, 볼륨 슬라이더, 반복재생 바
@@ -86,7 +92,7 @@ frontend/
 ```
 
 ### 3.2. `BottomPlayerBar.jsx` 내 HLS 스트리밍 재생 핵심 로직
-리스트에서 곡을 클릭하면 백엔드(`GET /api/tracks/{id}/play`)로부터 `/stream/{track_uuid}/index.m3u8` 주소를 받아온 뒤, 브라우저 환경에 맞춰 `hls.js`로 Nginx ➔ MinIO 청크 스트림을 연결합니다.
+리스트에서 곡을 클릭하면 백엔드(`GET /api/tracks/{id}/play`)로부터 `/stream/{track_uuid}/index.m3u8` 주소를 받아온 뒤, 브라우저 환경에 맞춰 `hls.js`로 Nginx ➔ RustFS 청크 스트림을 연결합니다.
 
 ```javascript
 import Hls from 'hls.js';

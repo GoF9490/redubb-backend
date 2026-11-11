@@ -1,5 +1,7 @@
 # [PRD-03] 모바일 앱 (Android Mobile App) 상세 설계
 
+> **변경 요약 (2026-11-11 백엔드 계약 정합):** 로그인 진입 시 `redirect_uri=musicapp://oauth2/callback` 지정, 토큰 저장·Bearer 헤더 사용·로그아웃 규칙, 변환 미완료(`409`) 및 다운로드 파일명 처리 명시. 상세는 `PRD.md` §7 참조.
+
 ## 1. 개요 및 개발 목표
 본 문서는 1차 통합 테스트(웹 E2E 검증)를 마친 백엔드(`PRD-05`)·음원 서버(`PRD-06`)·리버스 프록시(`PRD-04`) 파이프라인에 연동되는 **Android 네이티브 모바일 앱**의 상세 기술 스택, UI/UX 구조, 백그라운드 HLS 스트리밍 아키텍처, 그리고 초보자를 위한 리눅스 컨테이너 내 Android 빌드 인프라 구축 절차를 정의합니다.
 
@@ -32,7 +34,8 @@
    * 사용자가 검색어를 입력하면 `300ms` Debounce 후 `GET /api/tracks?keyword={검색어}`를 비동기 호출하여 노래 제목 또는 가수가 일치하는 결과로 아래 리스트를 즉시 갱신합니다.
 2. **우측 상단 로그인 버튼 및 `"Sign with Google"` 모달:**
    * **비로그인 시:** 검색창 우측에 **`[로그인]`** 버튼이 표시되며, 터치 시 화면 중앙에 컴팩트한 모달 다이얼로그가 뜨고 **`"Sign with Google"`** 버튼 하나가 노출됩니다.
-   * 버튼을 누르면 Chrome Custom Tabs가 열려 백엔드 Google OAuth2(`/oauth2/authorization/google`) 인증을 진행하고, 완료 시 앱 전용 딥링크(`musicapp://oauth2/callback?token={jwt}`)로 복귀하여 JWT를 저장합니다.
+   * 버튼을 누르면 Chrome Custom Tabs가 열려 백엔드 Google OAuth2(`{BASE_URL}/oauth2/authorization/google?redirect_uri=musicapp%3A%2F%2Foauth2%2Fcallback`) 인증을 진행하고, 완료 시 앱 전용 딥링크(`musicapp://oauth2/callback?token={jwt}`)로 복귀하여 JWT를 저장합니다. (`redirect_uri`는 백엔드 화이트리스트 `OAUTH2_ALLOWED_REDIRECT_URIS`에 등록된 값과 완전히 일치해야 하며, 로그인 실패 시 `?error={code}`가 전달됩니다. PRD-05 §6.1)
+   * **토큰 저장 및 사용:** 수신한 JWT는 `EncryptedSharedPreferences`(또는 DataStore)에 저장하고, OkHttp `Interceptor`로 모든 API 요청에 `Authorization: Bearer {jwt}` 헤더를 붙입니다. `GET /api/auth/me`가 `401`을 반환하면 토큰을 삭제하고 비로그인 상태로 전환합니다. 로그아웃은 저장된 토큰 삭제로 처리합니다(무상태 JWT).
 3. **로그인 후 구글 프로필 이미지 및 `"업로드"` 팝오버 메뉴:**
    * 로그인 완료 시 `[로그인]` 버튼 자리에 `GET /api/auth/me`에서 받아온 **구글 프로필 이미지(`profileImageUrl`)가 원형 아바타**로 표시됩니다.
    * 프로필 이미지를 터치하면 바로 아래에 드롭다운 팝오버 메뉴(`DropdownMenu`)로 **`"업로드"`** 옵션이 나타나며, 클릭 시 **음원 업로드 모달**이 열립니다.
@@ -48,8 +51,8 @@
 * 검색창 아래 리스트(`LazyColumn`)에는 저장된 노래들이 **업로드 날짜 기준 내림차순(`created_at DESC`)**으로 나열됩니다.
 * **각 아이템 행(Row) 구성:**
   * 좌측: 정사각형 라운드 **앨범자켓 썸네일** (`/artwork/{uuid}.jpg`)
-  * 중앙: **노래 제목(흰색 굵은 글씨)**, 그 아래에 **`노래 • {가수명} • {재생시간(mm:ss)}`** 표기 (변환 중일 경우 `[변환 중]` 뱃지 표시)
-  * 우측 끝: **더보기(`⋮`) 또는 원본 다운로드(`⬇`) 아이콘 버튼** — 터치 시 안드로이드 시스템 `DownloadManager`를 통해 `GET /api/tracks/{trackId}/download` 경로의 원본 음원 파일을 스마트폰 `Downloads` 폴더로 즉시 내려받습니다.
+  * 중앙: **노래 제목(흰색 굵은 글씨)**, 그 아래에 **`노래 • {가수명} • {재생시간(mm:ss)}`** 표기 (변환 중일 경우 `[변환 중]` 뱃지 표시. 변환 미완료 곡의 `GET /api/tracks/{id}/play`는 `409 TRACK_NOT_READY`를 반환하며, 에러 응답 형식 `{ code, message, timestamp }`는 PRD-05 §7.2 참조)
+  * 우측 끝: **더보기(`⋮`) 또는 원본 다운로드(`⬇`) 아이콘 버튼** — 터치 시 안드로이드 시스템 `DownloadManager`를 통해 `GET /api/tracks/{trackId}/download` 경로의 원본 음원 파일을 스마트폰 `Downloads` 폴더로 즉시 내려받습니다. (백엔드가 `X-Accel-Redirect`로 Nginx 내부 다운로드를 지시하므로 앱은 일반 HTTP 다운로드로 처리하면 되며, 파일명은 응답의 `Content-Disposition`(`filename*=UTF-8''...`)을 따릅니다.)
 
 ### 3.4. 하단 재생 컨트롤 UI (미니 플레이어 바 & 확장 플레이어 컨트롤)
 리스트에서 노래를 터치하면 화면 하단에 고정된 플레이어 UI가 활성화되며, `PRD-02`와 동일한 제어 기능을 제공합니다.

@@ -1,4 +1,6 @@
-# [PRD-06] 음원 서버 (RustFS 스토리지 & FFmpeg 변환 엔진) 상세 설계 (v1.1)
+# [PRD-06] 음원 서버 (RustFS 스토리지 & FFmpeg 변환 엔진) 상세 설계 (v1.2)
+
+> **v1.2 변경 요약 (2026-11-11):** RustFS 포트를 `127.0.0.1` 루프백에만 바인딩, 버킷 익명 읽기를 `hls/*`·`artwork/*`로 제한하고 원본은 presigned URL로만 접근, 플랫폼 분리 시 고려 사항(§6) 추가. 상세는 `PRD.md` §7 참조.
 
 ## 1. 개요 및 스토리지 스택 교체 배경
 본 문서는 음원 스트리밍 서비스 MVP에서 **원본 오디오 파일**, **실시간 스트리밍용 HLS 청크 파일(`.m3u8`, `.ts`)**, 그리고 **추출된 앨범 커버 이미지(`.jpg`)**를 영구 보관하고 서빙하는 **음원 서버(`rustfs` 오브젝트 스토리지 및 `FFmpeg` 변환 파이프라인)**의 상세 구축 명세를 정의합니다.
@@ -39,7 +41,7 @@
 
 | 버킷 내 경로 패턴 | 저장 대상 | 필수 지정 `Content-Type` | Nginx 연동 경로 및 접근 통제 방식 |
 | :--- | :--- | :--- | :--- |
-| **`original/{yyyy}/{mm}/{track_uuid}.{ext}`** | 업로드된 원본 음원 (`.mp3`, `.wav`, `.flac`) | `audio/mpeg`, `audio/wav` 등 (Tika 감지값) | **`/internal-storage/original/*`**<br>외부 직접 호출 차단(`internal;`), 백엔드 `X-Accel-Redirect` 헤더로만 다운로드 허용 |
+| **`original/{yyyy}/{mm}/{track_uuid}.{ext}`** | 업로드된 원본 음원 (`.mp3`, `.wav`, `.flac`) | `audio/mpeg`, `audio/wav` 등 (Tika 감지값) | **`/internal-storage/original/*`**<br>외부 직접 호출 차단(`internal;`), 백엔드 `X-Accel-Redirect`(presigned 경로+서명 쿼리) 헤더로만 다운로드 허용. **익명 읽기 비허용** |
 | **`artwork/{track_uuid}.jpg`** | 추출 또는 수정된 앨범 커버 이미지 | `image/jpeg` 또는 `image/png` | **`/artwork/*`**<br>Nginx ➔ RustFS 다이렉트 프록시 서빙 |
 | **`hls/{track_uuid}/index.m3u8`** | HLS 스트리밍 재생 순서표(매니페스트) | **`application/vnd.apple.mpegurl`** | **`/stream/*`**<br>Nginx ➔ RustFS 다이렉트 프록시 (캐시 짧게 유지) |
 | **`hls/{track_uuid}/chunk_{NNN}.ts`** | 6초 단위로 분할된 오디오 스트림 조각 | **`video/mp2t`** | **`/stream/*`**<br>Nginx ➔ RustFS 다이렉트 프록시 (Nginx 로컬 캐싱 적용) |
@@ -77,8 +79,10 @@ services:
       RUSTFS_CONSOLE_ENABLE: "true"
       TZ: Asia/Seoul
     ports:
-      - "9000:9000" # S3 API 통신 포트
-      - "9001:9001" # 웹 브라우저 관리 콘솔(GUI) 접속 포트
+      # 호스트 루프백(127.0.0.1)에만 바인딩: 개발 PC에서는 접속 가능, 같은 공유기/외부망에서는 접근 불가
+      # (nginx·백엔드 컨테이너는 도커 내부망의 서비스명 rustfs:9000으로 접근하므로 영향 없음)
+      - "127.0.0.1:9000:9000" # S3 API 통신 포트
+      - "127.0.0.1:9001:9001" # 웹 브라우저 관리 콘솔(GUI) 접속 포트
     volumes:
       - rustfs-data:/data # 컨테이너를 지워도 음원 파일이 유지되도록 영구 볼륨 연결
     healthcheck:
@@ -110,7 +114,10 @@ services:
             \"Effect\": \"Allow\",
             \"Principal\": \"*\",
             \"Action\": [\"s3:GetObject\"],
-            \"Resource\": [\"arn:aws:s3:::${STORAGE_BUCKET_NAME:-audio-storage}/*\"]
+            \"Resource\": [
+              \"arn:aws:s3:::${STORAGE_BUCKET_NAME:-audio-storage}/hls/*\",
+              \"arn:aws:s3:::${STORAGE_BUCKET_NAME:-audio-storage}/artwork/*\"
+            ]
           }
         ]
       }
@@ -124,8 +131,14 @@ volumes:
   rustfs-data:
 ```
 
-> **왜 `s3:GetObject` 읽기 정책을 설정하나요?**
-> RustFS 컨테이너는 외부에 직접 노출되지 않고 앞단의 **Nginx**와 **백엔드 서버**만 접근할 수 있는 도커 내부망에 위치합니다. 버킷에 객체 조회(`s3:GetObject`) 정책을 켜두면(목록 조회 `s3:ListBucket`은 비허용하여 보안 유지), Nginx가 `/stream/*`, `/artwork/*`, `/internal-storage/*` 경로로 파일을 가져갈 때 복잡한 S3 서명 헤더 없이도 초고속으로 파일을 프록시할 수 있습니다. 외부 사용자의 원본 무단 접근은 앞단 Nginx의 `internal;` 지시어가 완벽히 차단합니다.
+> **왜 `hls/`, `artwork/`에만 `s3:GetObject` 읽기 정책을 설정하나요?**
+> Nginx가 `/stream/*`, `/artwork/*` 경로로 파일을 가져갈 때 복잡한 S3 서명 없이 초고속으로 프록시할 수 있도록, **누구나 재생·표시해도 되는 공개 미디어 경로에만** 익명 객체 조회(`s3:GetObject`)를 허용합니다(목록 조회 `s3:ListBucket`은 비허용).
+>
+> **원본(`original/`)은 익명 읽기를 허용하지 않습니다.** 네트워크 격리(도커 내부망·루프백 바인딩)가 설정 실수나 플랫폼 분리로 깨지더라도 원본이 노출되지 않도록 이중으로 방어하기 위함입니다. 원본 다운로드는 백엔드가 짧은 유효기간(기본 60초)의 **presigned URL**을 생성하여 `X-Accel-Redirect: /internal-storage/original/...?X-Amz-...`로 Nginx에 지시하고, RustFS가 서명을 검증한 뒤에만 파일을 반환합니다(PRD-05 §7.1.2, PRD-04 §4). 외부 사용자의 `/internal-storage/*` 직접 호출은 Nginx `internal;` 지시어가 차단합니다.
+>
+> **presigned 서명 주의:** 서명에는 요청 `Host`가 포함되므로 백엔드 `STORAGE_ENDPOINT`(기본 `http://rustfs:9000`)의 host:port와 Nginx가 RustFS로 보내는 `Host` 헤더(`STORAGE_HOST_HEADER`, 기본 `rustfs:9000`)가 반드시 같아야 합니다.
+>
+> **백엔드 버킷 초기화와의 관계:** 백엔드 `StorageService`의 기동 시 초기화는 버킷 존재 확인·생성까지만 수행하고, 버킷 정책은 본 `storage-init` 컨테이너가 단일 기준으로 설정합니다(정책 이원화로 인한 불일치 방지).
 
 ### Step 3. 컨테이너 실행 및 정상 구동 확인 명령어
 터미널에서 아래 명령어를 순서대로 입력하여 RustFS가 정상적으로 켜지고 버킷이 만들어졌는지 확인합니다.
@@ -223,4 +236,16 @@ rm -rf /tmp/ffmpeg-test
 
 1. **트랙별 격리된 작업 폴더 생성:** 동시에 2개의 음원이 변환될 때 파일이 섞이지 않도록 반드시 `/tmp/audio-work/{track_uuid}/`처럼 고유 UUID 이름으로 하위 폴더를 만들어 작업합니다.
 2. **`try - finally` 즉시 삭제 원칙 (`PRD-05` 연동):** RustFS 업로드가 성공하든 중간에 FFmpeg 에러가 나든 관계없이, 자바 코드의 `finally` 블록에서 `FileSystemUtils.deleteRecursively(workDir)`를 호출해 해당 UUID 작업 폴더를 즉시 삭제합니다.
-3. **FFmpeg 프로세스 타임아웃 강제 (`Process.waitFor`):** 손상된 오디오 파일로 인해 FFmpeg 프로세스가 멈춘 채 영원히 끝나지 않는 현상(Hang)을 방지하기 위해, `process.waitFor(3, TimeUnit.MINUTES)`로 최대 3분 제한을 걸고 초과 시 `process.destroyForcibly()`로 강제 종료 후 `FAILED` 처리합니다.
+3. **FFmpeg 프로세스 타임아웃 강제 (`Process.waitFor`):** 손상된 오디오 파일로 인해 FFmpeg 프로세스가 멈춘 채 영원히 끝나지 않는 현상(Hang)을 방지하기 위해, `process.waitFor(3, TimeUnit.MINUTES)`로 최대 3분 제한을 걸고 초과 시 `process.destroyForcibly()`로 강제 종료 후 `FAILED` 처리합니다. (제한 시간은 백엔드 설정 `app.audio.ffmpeg-timeout-minutes`, 기본 3분 — PRD-05 §4.2)
+
+## 6. 플랫폼 분리 시 고려 사항
+
+RustFS를 백엔드·Nginx와 다른 서버/플랫폼으로 분리할 때 필요한 조치입니다.
+
+| 항목 | 단일 호스트(현재) | 분리 시 조치 |
+| :--- | :--- | :--- |
+| 접속 주소 | 백엔드 `STORAGE_ENDPOINT=http://rustfs:9000`, Nginx `STORAGE_UPSTREAM=rustfs:9000` | 두 환경변수를 새 주소로 변경 (코드·설정 파일 수정 불필요) |
+| presigned Host 일치 | `rustfs:9000` | 백엔드 `STORAGE_ENDPOINT` 호스트와 Nginx `STORAGE_HOST_HEADER`를 동일 값으로 변경 |
+| 포트 노출 | `127.0.0.1` 루프백 바인딩 | 방화벽/보안그룹으로 `9000`은 Nginx·백엔드 IP에서만 허용, `9001` 콘솔은 관리자 IP로 제한 |
+| 구간 암호화 | 도커 내부망 평문 HTTP | 퍼블릭망을 경유하면 TLS(`https://`) 적용 또는 VPN/VPC 사설망 사용 |
+| 원본 보호 | presigned 서명 검증 | 변경 불필요 (네트워크 경계와 무관하게 서명으로 보호) |

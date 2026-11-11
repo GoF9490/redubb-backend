@@ -1,4 +1,6 @@
-# [PRD-07] 데이터베이스 (PostgreSQL) 상세 설계 (v1.2 - RustFS 연동 확정안)
+# [PRD-07] 데이터베이스 (PostgreSQL) 상세 설계 (v1.3 - 문서 간 정합성 보완안)
+
+> **v1.3 변경 요약 (2026-11-11):** PostgreSQL 포트를 `127.0.0.1` 루프백에만 바인딩. 스키마 변경 없음(본 문서 DDL이 백엔드 JPA 엔티티의 단일 기준). 상세는 `PRD.md` §7 참조.
 
 ## 1. 개요 및 기술 스택
 본 문서는 음원 스트리밍 및 원본 아카이빙 서비스 MVP의 영속성 계층을 담당하는 **중앙 데이터베이스(`postgres-db`)**의 스키마, PK 전략, 제약조건(`NULL` 허용 여부), 최소 필수 인덱스 및 도커 인프라 구성을 정의합니다.
@@ -169,7 +171,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD} # 필수 환경변수 주입
       TZ: Asia/Seoul
     ports:
-      - "5432:5432" # 로컬 개발 및 DB 클라이언트 확인용 (운영 시 내부망만 개방 가능)
+      # 호스트 루프백(127.0.0.1)에만 바인딩: 개발 PC의 DB 클라이언트에서는 접속 가능, 외부망에서는 접근 불가
+      # (백엔드 컨테이너는 도커 내부망의 서비스명 postgres-db:5432로 접근하므로 영향 없음)
+      # 플랫폼 분리 시: 백엔드 DB_HOST만 변경하고, 방화벽/보안그룹으로 5432를 백엔드 IP에서만 허용
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
