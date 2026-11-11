@@ -184,17 +184,18 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [구현] Windows에서 `\` 경로 구분자를 `/`로 변환
   - [검토] 알 수 없는 확장자의 기본 Content-Type(`application/octet-stream`)
 
-### [ ] T2-4 `AudioMetadataValidator` ① Tika 검증
+### [x] T2-4 `AudioMetadataValidator` ① Tika 검증
 - **목표:** 음원 MIME 위변조 검증, MIME→확장자 정규화, 앨범자켓(JPEG/PNG, 10MB) 검증.
 - **선행:** T0-6
 - **완료 조건:**
-  - [ ] 정상 MP3/WAV/FLAC(`audio/x-flac` 포함) 통과
-  - [ ] 확장자만 `.mp3`인 텍스트 파일 → `InvalidAudioFormatException`
-  - [ ] 정규화: `audio/mpeg→mp3`, wav 계열→`wav`, flac 계열→`flac`, `audio/mp4→m4a`
-  - [ ] 아트워크: jpg/png 통과, 비이미지·10MB 초과 → `InvalidArtworkException`
-  - [ ] `./gradlew test` 통과
+  - [x] 정상 MP3/WAV/FLAC(`audio/x-flac` 포함) 통과
+  - [x] 확장자만 `.mp3`인 텍스트 파일 → `InvalidAudioFormatException`
+  - [x] 정규화: `audio/mpeg→mp3`, wav 계열→`wav`, flac 계열→`flac`, `audio/mp4→m4a`
+  - [x] 아트워크: jpg/png 통과, 비이미지·10MB 초과 → `InvalidArtworkException`
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [탐색] Tika가 샘플 WAV/M4A를 어떤 MIME으로 반환하는지 실제 확인(허용 목록에 없는 변형 발견 시 PRD 갱신 여부를 사용자에게 문의)
+    - **확인 결과(기록):** MP3=`audio/mpeg`, WAV=`audio/vnd.wave`, FLAC=`audio/x-flac`, M4A=`audio/mp4` — 모두 PRD 허용 목록 안이며 변형은 없었다. M4A 실파일 `sample.m4a`를 추가했다(T2-5 JAudioTagger 검증에도 사용).
   - [검토] 검증 실패 시 임시 파일 삭제는 호출자(`TrackService`)의 finally 책임임을 명확히
 
 ### [ ] T2-5 `AudioMetadataValidator` ② 태그·커버 추출

@@ -8,6 +8,7 @@
 | `sample-tagged.mp3` | ID3v2 제목(`Sample Title`)/가수(`Sample Artist`)/앨범(`Sample Album`) + 커버 이미지 내장, 1초 |
 | `sample-untagged.wav` | 태그 없는 1초 WAV (Fallback 검증용) |
 | `sample.flac` | 태그 없는 1초 FLAC |
+| `sample.m4a` | 태그 없는 1초 AAC-LC M4A (ftyp 브랜드 `M4A `, Tika MIME 확인용) |
 | `fake-audio.mp3` | 확장자만 `.mp3`인 텍스트 파일 (위변조 검증용) |
 | `cover.jpg`, `cover.png` | 64x64 단색 앨범자켓 이미지 |
 
@@ -38,6 +39,9 @@ docker run --rm -v "${d}:/out" linuxserver/ffmpeg:latest -y -f lavfi -i "sine=fr
 # 4) FLAC (1초, 16kHz mono)
 docker run --rm -v "${d}:/out" linuxserver/ffmpeg:latest -y -f lavfi -i "sine=frequency=440:duration=1" -ar 16000 -ac 1 -fflags +bitexact -map_metadata -1 /out/sample.flac
 
+# 4-1) M4A (1초, 16kHz mono, AAC-LC 32kbps, ipod 컨테이너)
+docker run --rm -v "${d}:/out" linuxserver/ffmpeg:latest -y -f lavfi -i "sine=frequency=440:duration=1" -ar 16000 -ac 1 -c:a aac -b:a 32k -fflags +bitexact -map_metadata -1 -f ipod /out/sample.m4a
+
 # 5) 가짜 mp3 (텍스트)
 Set-Content -Path "$d\fake-audio.mp3" -Value "This is not an audio file." -Encoding ascii
 ```
@@ -50,3 +54,4 @@ docker run --rm --entrypoint ffprobe -v "${d}:/out" linuxserver/ffmpeg:latest -h
 
 - `sample-tagged.mp3`: title/artist/album 태그, 비디오(mjpeg, attached pic) 스트림 존재, 길이 1.0초
 - `sample-untagged.wav`, `sample.flac`: format 태그 없음, 길이 1.0초
+- `sample.m4a` (ffprobe): major_brand `M4A `, compatible_brands `M4A isomiso2`, 오디오 aac (LC) 16000Hz mono, 길이 1.0초, 5391바이트, 태그 없음

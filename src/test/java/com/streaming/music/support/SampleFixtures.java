@@ -20,6 +20,7 @@ public final class SampleFixtures {
     public static final String TAGGED_MP3 = "sample-tagged.mp3";
     public static final String UNTAGGED_WAV = "sample-untagged.wav";
     public static final String FLAC = "sample.flac";
+    public static final String M4A = "sample.m4a";
     public static final String FAKE_AUDIO_MP3 = "fake-audio.mp3";
     public static final String COVER_JPG = "cover.jpg";
     public static final String COVER_PNG = "cover.png";

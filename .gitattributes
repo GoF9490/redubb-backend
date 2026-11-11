@@ -8,3 +8,4 @@ src/test/resources/samples/*.wav binary
 src/test/resources/samples/*.flac binary
 src/test/resources/samples/*.jpg binary
 src/test/resources/samples/*.png binary
+src/test/resources/samples/*.m4a binary

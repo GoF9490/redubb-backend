@@ -27,6 +27,7 @@ class SampleFixtureTest {
             SampleFixtures.TAGGED_MP3,
             SampleFixtures.UNTAGGED_WAV,
             SampleFixtures.FLAC,
+            SampleFixtures.M4A,
             SampleFixtures.FAKE_AUDIO_MP3,
             SampleFixtures.COVER_JPG,
             SampleFixtures.COVER_PNG
@@ -74,6 +75,13 @@ class SampleFixtureTest {
         byte[] flac = SampleFixtures.readSampleBytes(SampleFixtures.FLAC);
         assertThat(new String(wav, 0, 4, StandardCharsets.US_ASCII)).isEqualTo("RIFF");
         assertThat(new String(flac, 0, 4, StandardCharsets.US_ASCII)).isEqualTo("fLaC");
+    }
+
+    @Test
+    @DisplayName("M4A는 ISO BMFF ftyp 박스 헤더로 시작한다")
+    void verifyM4aHasFtypHeader() {
+        byte[] m4a = SampleFixtures.readSampleBytes(SampleFixtures.M4A);
+        assertThat(new String(m4a, 4, 4, StandardCharsets.US_ASCII)).isEqualTo("ftyp");
     }
 
     @Test
