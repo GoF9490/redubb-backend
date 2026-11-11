@@ -505,52 +505,65 @@ com.streaming.music
 ```java
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(JwtProperties.class)
+@Import(CorsConfig.class) // CorsConfigurationSource 빈 (app.cors 기반)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomOidcUserService customOidcUserService;
-    private final HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
-    private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
-    private final OAuth2AuthenticationFailureHandler oAuth2FailureHandler;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtTokenProvider jwtTokenProvider;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint; // 401 공통 에러 JSON 응답
+    private final CustomOidcUserService customOidcUserService;
+    private final JwtProperties jwtProperties;                                // redirect_uri 화이트리스트 검증용
     private final CorsConfigurationSource corsConfigurationSource;           // app.cors 기반
+
+    /** 인가 요청 저장소. oauth2Login과 성공·실패 핸들러가 같은 인스턴스를 공유한다. */
+    @Bean
+    public HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository() {
+        return new HttpCookieOAuth2AuthorizationRequestRepository();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        HttpCookieOAuth2AuthorizationRequestRepository cookieRepository = authorizationRequestRepository();
+        // 설정이 잘못되면(빈 화이트리스트, 기본 URI 불포함, 금지 문자) 기동 시 실패한다(fail-fast)
+        RedirectUriPolicy redirectUriPolicy = new RedirectUriPolicy(jwtProperties);
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
+            .logout(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
             .authorizeHttpRequests(auth -> auth
                 // 로그인 사용자 정보는 인증 필수
                 .requestMatchers("/api/auth/me").authenticated()
-                // [MVP 정책 4] 초기에는 음원 업로드/조회/재생/다운로드 전체 허용 (permitAll)
-                // 추후 권한 제어 시 아래 경로를 .authenticated() 또는 .hasRole("USER")로 전환
-                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                .requestMatchers("/api/tracks/*/download").permitAll()
-                .requestMatchers("/api/tracks/*/play").permitAll()
-                .requestMatchers("/api/tracks/**").permitAll()
+                // [MVP 정책 4] 초기에는 음원 업로드/조회/재생/다운로드, /oauth2/**, /login/oauth2/** 전체 허용 (permitAll)
+                // 추후 권한 제어 시 /api/tracks/** 등 경로별 규칙을 anyRequest() 앞에 두고 .authenticated() 또는 .hasRole("USER")로 전환
                 .anyRequest().permitAll()
             )
             .oauth2Login(oauth2 -> oauth2
                 // 멀티노드 무상태: 인가 요청(state)을 HttpSession 대신 쿠키에 저장 (§6.1-3)
-                .authorizationEndpoint(endpoint -> endpoint
-                    .authorizationRequestRepository(cookieAuthorizationRequestRepository))
+                .authorizationEndpoint(endpoint -> endpoint.authorizationRequestRepository(cookieRepository))
                 // scope에 openid가 있으므로 일반 userService가 아닌 oidcUserService에 등록한다
                 .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
-                .successHandler(oAuth2SuccessHandler)
-                .failureHandler(oAuth2FailureHandler)
+                .successHandler(new OAuth2AuthenticationSuccessHandler(
+                    jwtTokenProvider, redirectUriPolicy, cookieRepository))
+                .failureHandler(new OAuth2AuthenticationFailureHandler(redirectUriPolicy, cookieRepository))
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            // 필터는 빈이 아닌 직접 생성하여 서블릿 컨테이너 자동 등록(이중 실행)을 피한다.
+            .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 }
 ```
+
+* **구현 반영 사항(`security/`):**
+  * **redirect_uri 검증:** `RedirectUriPolicy`가 쿠키의 `redirect_uri`를 `app.jwt.allowed-redirect-uris`와 **정규화 없는 문자열 완전 일치(대소문자 구분)**로만 비교합니다(Open Redirect 방지). 일치하지 않으면 토큰 없이 `default-redirect-uri?error=invalid_redirect_uri`로 보내고, 화이트리스트가 비었거나 기본 URI가 화이트리스트에 없거나 항목에 `? # \` 공백·제어문자가 있으면 기동에 실패합니다.
+  * **토큰 전달:** 성공 핸들러는 `{redirect_uri}?token={jwt}`로 `302`를 응답하며 `Cache-Control: no-store`, `Pragma: no-cache`, `Referrer-Policy: no-referrer`를 붙입니다. 실패 핸들러의 `?error={code}`는 허용 목록(`access_denied`, `invalid_request`, `authorization_request_not_found`, `invalid_state_parameter`, `invalid_user_info`, `server_error`, `temporarily_unavailable`)만 그대로 전달하고 그 외는 `login_failed`로 치환합니다.
+  * **알려진 위험:** JWT가 URL 쿼리로 전달되므로 웹 콜백 요청이 Nginx 접근 로그에 `token` 쿼리로 남을 수 있습니다(PRD-04 로그 포맷 설정 사안, MVP 이후 일회용 코드 교환 방식으로 전환 검토).
+  * **CORS(`CorsConfig`):** 빈 설정이면 `CorsConfigurationSource`에 아무것도 등록하지 않아 CORS를 적용하지 않고(프리플라이트는 CORS 헤더 없이 통과), 값이 있으면 `scheme://host[:port]`만 허용하며 `*`·`null`·경로·끝 슬래시 등은 기동 시 거부합니다. 허용 오리진 외의 오리진은 프리플라이트·일반 요청 모두 `403`입니다.
 
 > **Google Cloud Console 등록 값:** 승인된 리디렉션 URI는 `http://localhost/login/oauth2/code/google`(Nginx 80 경유)입니다. `forward-headers-strategy: framework`와 Nginx의 `Host`/`X-Forwarded-*` 헤더(PRD-04) 전달로 백엔드가 이 주소를 올바르게 계산합니다.
 

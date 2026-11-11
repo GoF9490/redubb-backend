@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -28,6 +30,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties(JwtProperties.class)
+@Import(CorsConfig.class)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -35,6 +38,7 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final CustomOidcUserService customOidcUserService;
     private final JwtProperties jwtProperties;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     /** 인가 요청 저장소. oauth2Login과 성공·실패 핸들러가 같은 인스턴스를 공유한다. */
     @Bean
@@ -49,7 +53,7 @@ public class SecurityConfig {
         RedirectUriPolicy redirectUriPolicy = new RedirectUriPolicy(jwtProperties);
         http
             .csrf(AbstractHttpConfigurer::disable)
-            // T6-6 확장 지점: .cors(cors -> cors.configurationSource(...))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
             .logout(AbstractHttpConfigurer::disable)

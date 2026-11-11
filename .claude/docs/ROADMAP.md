@@ -497,14 +497,18 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
     - **확인(기록, `OAuth2LoginFlowTest`):** `oauth2Login` 추가 후에도 미인증 `GET /api/auth/me`는 401 JSON이며 `Location` 헤더가 없다. `GET /oauth2/authorization/google`은 302로 `accounts.google.com`에 이동하며 `state`·`nonce`·`client_id`·`scope=openid`·`redirect_uri`를 포함하고 `oauth2_auth_request`(HttpOnly, SameSite=Lax)·`oauth2_redirect_uri` 쿠키가 생기며 **`JSESSIONID`는 없다**. 쿠키 없이 `/login/oauth2/code/google`을 호출하면 `?error=authorization_request_not_found`로 302되어 실패 핸들러까지 연결됨을 확인했다. `GET /login`은 404(기본 로그인 페이지 미노출). 실제 Google 호출을 쓰는 검증은 하지 않았다(콜백 성공 처리는 핸들러 단위 테스트로 갈음).
   - **범위 밖 위험(기록):** JWT가 URL 쿼리(`{redirect_uri}?token=...`)로 전달되므로 웹 콜백 요청(`/auth/callback?token=...`)이 **Nginx 접근 로그에 `token` 쿼리로 남을 수 있다**. 로그 포맷 설정은 PRD-04(Nginx) 소관이라 이 저장소에서는 해결하지 않으며, 통합 단계에서 `/auth/callback`의 쿼리를 접근 로그에서 제외하거나 마스킹하는 설정을 검토한다(MVP 이후 과제: 토큰을 URL 대신 단기 일회용 코드 교환 방식으로 전환).
 
-### [ ] T6-6 CORS 설정
+### [x] T6-6 CORS 설정
 - **목표:** `app.cors.allowed-origins`가 비어 있으면 CORS 비활성, 값이 있으면 해당 오리진에 한해 `GET, POST, OPTIONS`와 `Authorization`, `Content-Type` 허용(`allowCredentials=false`).
 - **선행:** T0-3, T0-5
 - **완료 조건:**
-  - [ ] 빈 설정: 프리플라이트 요청에 `Access-Control-Allow-Origin` 없음
-  - [ ] 허용 오리진: 프리플라이트 성공, 비허용 오리진 거부
-  - [ ] `./gradlew test` 통과
+  - [x] 빈 설정: 프리플라이트 요청에 `Access-Control-Allow-Origin` 없음
+  - [x] 허용 오리진: 프리플라이트 성공, 비허용 오리진 거부
+  - [x] `./gradlew test` 통과
 - **주의:** [구현] `CorsConfigurationSource` 빈이 `SecurityConfig`에서 참조되는 구조(PRD-05 §7.3)
+  - **구현(기록):** `CorsConfig`가 `CorsConfigurationSource` 빈을 만들고 `SecurityConfig`가 `@Import(CorsConfig.class)`로 포함해 `.cors(...)`에 전달한다(`SecurityConfig`를 임포트하는 기존 슬라이스 테스트 4곳은 수정 없이 통과). 빈 설정이면 설정을 등록하지 않아 CORS가 적용되지 않고, 값이 있으면 `/**`에 `GET, POST, OPTIONS`·`Authorization, Content-Type`·`allowCredentials=false`·`maxAge=3600`을 등록한다. 빈 생성 시 오리진을 검증해 `*`·`null`·경로·쿼리·fragment·userinfo·끝 슬래시·scheme 없음·`http/https` 외 scheme은 **기동 시 거부(fail-fast)** 한다. `exposedHeaders`는 두지 않는다(PRD 계약에 없음, 기본 구성은 단일 오리진).
+  - **실측 동작(기록):** 빈 설정의 `OPTIONS /api/auth/me`·일반 GET은 CORS 헤더 없이 200(브라우저는 `Allow-Origin`이 없어 차단). 허용 오리진 프리플라이트는 200 + `Allow-Origin/Methods/Headers/Max-Age`(`Allow-Credentials` 없음), 인증 없는 `GET /api/auth/me`는 401 JSON이며 `Allow-Origin`이 함께 붙는다(브라우저가 본문을 읽을 수 있음). 비허용 오리진은 프리플라이트·일반 GET 모두 403, 허용 오리진에서 `DELETE`·`X-Custom` 헤더 프리플라이트도 403.
+  - **동작 메모(기록):** Spring `CorsConfiguration`의 오리진 비교는 끝 슬래시 제거와 대소문자 무시로 일치하므로 요청 `Origin`의 대소문자·끝 슬래시 변형도 허용된다(호스트·스킴은 대소문자를 구분하지 않고 브라우저가 보내는 `Origin`은 항상 소문자·끝 슬래시 없음이라 우회 경로가 아니며, 응답 `Allow-Origin`은 요청 값을 그대로 돌려준다). 공백만 있는 항목은 `CorsProperties`가 이미 제거하므로 CORS 비활성이 된다(안전한 기본값).
+  - **T7 이관(기록):** Nginx 뒤 **동일 오리진 요청의 `Origin` 헤더 판정**은 Nginx의 `Host`/`X-Forwarded-*` 전달 설정에 영향을 받을 수 있다. `allowed-origins`가 비어 있지 않은 분리 배포 구성에서만 문제이므로 T7 통합 단계에서 확인한다.
 
 ### [ ] T6-7 인증 사용자 연결 (업로더·이력)
 - **목표:** 인증된 사용자를 업로드 `uploader`와 재생·다운로드 이력 `user`에 연결한다.
