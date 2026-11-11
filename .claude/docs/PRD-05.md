@@ -489,6 +489,8 @@ com.streaming.music
 | `413` | `PAYLOAD_TOO_LARGE` | 멀티파트 용량 초과(`MaxUploadSizeExceededException`) |
 | `500` | `INTERNAL_ERROR` | 스토리지 업로드 실패 등 기타 서버 오류 (내부 상세는 응답에 노출하지 않고 로그로만 기록) |
 
+> **표 외 표준 MVC 예외 처리:** `NoResourceFoundException`(없는 경로), `HttpRequestMethodNotSupportedException` 등 위 표에 없는 Spring MVC 표준 예외는 원래 HTTP 상태를 유지하고, 새 에러 코드를 추가하지 않고 4xx는 `INVALID_REQUEST`, 5xx는 `INTERNAL_ERROR` 코드로 응답합니다. 그 외 처리되지 않은 예외는 `500 INTERNAL_ERROR`입니다.
+
 ### 7.3. Spring Security 설정 (`MVP permitAll` + Google OAuth2 연동 구조)
 초기 MVP에서는 음원 관련 모든 API를 `permitAll()`로 열어두되, Google OAuth2 로그인 파이프라인과 JWT 필터를 함께 구성해 두어 추후 엔드포인트별 권한 제한(`.authenticated()`)을 즉시 켤 수 있도록 설계합니다.
 

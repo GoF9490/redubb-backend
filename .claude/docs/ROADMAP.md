@@ -59,14 +59,14 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [계획] `@ConfigurationPropertiesScan` vs `@EnableConfigurationProperties` 중 하나로 통일
   - [구현] 빈 문자열이 `null`로 들어오는 경우 방어
 
-### [ ] T0-4 공통 예외 및 에러 응답
+### [x] T0-4 공통 예외 및 에러 응답
 - **목표:** `ErrorCode` enum, `BusinessException` 계층(`InvalidAudioFormatException`, `InvalidArtworkException`, `TrackNotFoundException`, `TrackNotReadyException`), `ErrorResponse{code,message,timestamp}`, `@RestControllerAdvice`를 구현한다(PRD-05 §7.2).
 - **선행:** T0-1
 - **완료 조건:**
-  - [ ] `@WebMvcTest` + 테스트용 컨트롤러로 `400 INVALID_AUDIO_FORMAT / INVALID_ARTWORK / INVALID_REQUEST`, `404`, `409`, `413`, `500` 스키마 검증
-  - [ ] 500 응답 본문에 예외 상세·스택 미노출
-  - [ ] 잘못된 UUID 경로 변수 → `400 INVALID_REQUEST`
-  - [ ] `timestamp`가 ISO-8601(+09:00 또는 UTC) 형식
+  - [x] `@WebMvcTest` + 테스트용 컨트롤러로 `400 INVALID_AUDIO_FORMAT / INVALID_ARTWORK / INVALID_REQUEST`, `404`, `409`, `413`, `500` 스키마 검증
+  - [x] 500 응답 본문에 예외 상세·스택 미노출
+  - [x] 잘못된 UUID 경로 변수 → `400 INVALID_REQUEST`
+  - [x] `timestamp`가 ISO-8601(+09:00 또는 UTC) 형식
 - **주의:**
   - [탐색] Boot 4/Spring 7에서 `MaxUploadSizeExceededException`, `MethodArgumentTypeMismatchException`의 패키지·핸들링 위치
   - [검토] 테스트용 컨트롤러는 `src/test`에만 두고 운영 코드에 섞지 않는다
