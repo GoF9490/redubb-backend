@@ -448,18 +448,22 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - **확인(기록):** `STATELESS`의 `SecurityContextHolderFilter`가 요청 종료 시 컨텍스트를 정리해 인증이 요청 간에 새지 않음을 연속 요청 테스트(`notLeakAuthenticationBetweenRequests`)로 증명했다. `MVC GlobalExceptionHandler`가 만든 401은 `Content-Type: application/json`(charset 없음), `EntryPoint` 응답은 `application/json;charset=UTF-8`이며 키(code/message/timestamp)와 code·message는 같다.
   - **T6-5 회귀 항목(기록):** `oauth2Login`을 추가하면 `/api/**`의 기본 인증 진입점이 로그인 페이지 리다이렉트로 바뀔 수 있다. T6-5에서 `oauth2Login` 추가 후에도 미인증 `/api/auth/me`가 여전히 **401 JSON(리다이렉트 없음)** 인지 확인하는 회귀 테스트를 반드시 추가한다.
 
-### [ ] T6-3 쿠키 기반 인가 요청 저장소
+### [x] T6-3 쿠키 기반 인가 요청 저장소
 - **목표:** `HttpCookieOAuth2AuthorizationRequestRepository` — 인가 요청과 `redirect_uri`를 쿠키(`oauth2_auth_request`, `oauth2_redirect_uri`; HttpOnly, Path=/, Max-Age=180, SameSite=Lax)에 저장한다.
 - **선행:** T0-5
 - **완료 조건:**
-  - [ ] 저장 후 로드 시 동일한 `OAuth2AuthorizationRequest` 복원(`MockHttpServletRequest/Response`)
-  - [ ] 쿠키 속성(HttpOnly, Path, Max-Age, SameSite) 검증
-  - [ ] 삭제 시 두 쿠키 Max-Age=0
-  - [ ] 변조된 쿠키 값 → null 반환(예외 없음)
-  - [ ] `./gradlew test` 통과
+  - [x] 저장 후 로드 시 동일한 `OAuth2AuthorizationRequest` 복원(`MockHttpServletRequest/Response`)
+  - [x] 쿠키 속성(HttpOnly, Path, Max-Age, SameSite) 검증
+  - [x] 삭제 시 두 쿠키 Max-Age=0
+  - [x] 변조된 쿠키 값 → null 반환(예외 없음)
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [탐색] Spring Security 7의 `OAuth2AuthorizationRequestRepository` 시그니처·직렬화 방식 (Context7로 확인)
+    - **확인(기록):** Spring Security 7.1.2(jar 소스 확인)에서 인터페이스 이름은 `OAuth2AuthorizationRequestRepository`가 **아니라** `org.springframework.security.oauth2.client.web.AuthorizationRequestRepository<T extends OAuth2AuthorizationRequest>`이다(ROADMAP·PRD의 옛 표기와 다름). 메서드는 `load/save/removeAuthorizationRequest` 3개이며 `removeAuthorizationRequest`는 요청을 반환하면서 저장분을 삭제한다. `oauth2Login().authorizationEndpoint().authorizationRequestRepository(...)`에 전달한다.
   - [검토] 쿠키 값 직렬화는 안전한 방식(Java 직렬화 역직렬화 취약점 주의)
+    - **결정(기록):** Java 직렬화·`SerializationUtils`는 쓰지 않는다. 전용 record를 JSON(Jackson 3 `JsonMapper`, 다형성 타이핑 없음)으로 변환해 Base64URL(무패딩)로 인코딩하고 복원은 필드만 읽어 `OAuth2AuthorizationRequest.authorizationCode()` 빌더로 재구성한다. 실제 Java 직렬화 스트림 바이트(`rO0AB`)를 쿠키로 넣어도 예외 없이 `null`(역직렬화 시도 없음)임을 테스트로 확인했다.
+  - **HMAC 서명 미적용 근거(기록):** 쿠키는 브라우저와 `state`를 묶는 역할이며, 서명 여부와 무관하게 공격자는 정상 흐름에서 받은 유효 쿠키를 그대로 복사할 수 있어 서명은 쿠키 심기 공격을 막지 못한다. 서명이 막는 필드 조작(`redirectUri`, `clientId`)은 Google의 등록 redirect 검증과 코드 교환 단계에서 이미 거부된다. 별도 서명 키(설정 키 추가)의 비용 대비 이득이 작아 MVP에서는 하지 않는다.
+  - **구현 메모(기록):** `@Component`가 아니며 T6-5에서 `SecurityConfig`가 `new`로 만들어 `oauth2Login`에 전달하고 **같은 인스턴스를 성공·실패 핸들러에 주입**해야 한다. 핸들러는 `loadRedirectUri(request)`로 읽은 뒤 `removeAuthorizationRequestCookies(request, response)`로 두 쿠키를 지운다(`removeAuthorizationRequest`는 `oauth2_auth_request`만 삭제). `redirect_uri` 쿠키는 Base64URL로 저장(헤더 인젝션 불가, 512자 초과·없음·공백이면 값 쿠키를 만들지 않고 **잔존 쿠키 삭제 헤더를 내보내 이전 시도의 값이 180초 안에 재사용되지 않게 한다**). `Secure`는 `request.isSecure()`일 때만 붙고, 값이 3072자를 넘는 쿠키는 `null`로 처리한다.
 
 ### [ ] T6-4 `CustomOAuth2UserService`
 - **목표:** Google 응답에서 `sub/email/picture`만 추출해 `UserService.upsert`를 호출한다.
