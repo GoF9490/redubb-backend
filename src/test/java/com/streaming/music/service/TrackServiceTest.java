@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -22,6 +24,7 @@ import com.streaming.music.entity.User;
 import com.streaming.music.exception.InvalidArtworkException;
 import com.streaming.music.exception.InvalidAudioFormatException;
 import com.streaming.music.exception.InvalidRequestException;
+import com.streaming.music.exception.StorageException;
 import com.streaming.music.repository.TrackRepository;
 import com.streaming.music.repository.UserRepository;
 import com.streaming.music.service.AudioMetadataValidator.AudioMetadata;
@@ -44,6 +47,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -353,5 +357,122 @@ class TrackServiceTest {
 
         assertThat(withPath.getOriginalFilename()).isEqualTo("곡.mp3");
         assertThat(withoutName.getOriginalFilename()).isEqualTo("unknown");
+    }
+
+    private void stubEmbeddedArtworkUpload() {
+        stubValidator(EMBEDDED_ARTWORK);
+        when(audioMetadataValidator.detectArtworkMimeType(EMBEDDED_ARTWORK)).thenReturn("image/jpeg");
+    }
+
+    @Test
+    @DisplayName("DB 저장 예외 시 원본·앨범아트를 삭제하고 예외를 전파하며 임시 파일을 정리한다")
+    void uploadCompensatesBothObjectsWhenSaveFails() throws IOException {
+        stubEmbeddedArtworkUpload();
+        DataAccessResourceFailureException failure = new DataAccessResourceFailureException("db down");
+        when(trackRepository.save(any(Track.class))).thenThrow(failure);
+
+        assertThatThrownBy(() -> trackService.upload(request(null, null, null, null), null)).isSameAs(failure);
+
+        ArgumentCaptor<String> originalCaptor = ArgumentCaptor.forClass(String.class);
+        verify(storageService).uploadFile(originalCaptor.capture(), any(Path.class), anyString());
+        ArgumentCaptor<String> artworkCaptor = ArgumentCaptor.forClass(String.class);
+        verify(storageService).uploadBytes(artworkCaptor.capture(), any(byte[].class), anyString());
+        verify(storageService).deleteObject(originalCaptor.getValue());
+        verify(storageService).deleteObject(artworkCaptor.getValue());
+        verify(transcodeTaskDispatcher, never()).dispatch(any());
+        assertThat(countWorkDirFiles()).isZero();
+    }
+
+    @Test
+    @DisplayName("이벤트 발행 예외 시에도 원본·앨범아트를 삭제한다")
+    void uploadCompensatesWhenDispatchFails() {
+        stubEmbeddedArtworkUpload();
+        stubSave();
+        IllegalStateException failure = new IllegalStateException("dispatch 실패");
+        doThrow(failure).when(transcodeTaskDispatcher).dispatch(any(TranscodeEventDto.class));
+
+        assertThatThrownBy(() -> trackService.upload(request(null, null, null, null), null)).isSameAs(failure);
+
+        verify(storageService, times(2)).deleteObject(anyString());
+    }
+
+    @Test
+    @DisplayName("앨범아트가 없으면 원본만 삭제하고 deleteObject(null)은 호출하지 않는다")
+    void uploadDeletesOnlyOriginalWhenNoArtwork() {
+        stubValidator(null);
+        when(trackRepository.save(any(Track.class))).thenThrow(new DataAccessResourceFailureException("db down"));
+
+        assertThatThrownBy(() -> trackService.upload(request(null, null, null, null), null))
+                .isInstanceOf(DataAccessResourceFailureException.class);
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(storageService, times(1)).deleteObject(keyCaptor.capture());
+        assertThat(keyCaptor.getValue()).startsWith("original/");
+        verify(storageService, never()).deleteObject(isNull());
+    }
+
+    @Test
+    @DisplayName("앨범아트 업로드 실패 시 이미 올라간 원본만 삭제하고 예외를 전파한다")
+    void uploadCompensatesOriginalWhenArtworkUploadFails() throws IOException {
+        stubEmbeddedArtworkUpload();
+        StorageException failure = new StorageException("putObject");
+        doThrow(failure).when(storageService).uploadBytes(anyString(), any(byte[].class), anyString());
+
+        assertThatThrownBy(() -> trackService.upload(request(null, null, null, null), null)).isSameAs(failure);
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(storageService, times(1)).deleteObject(keyCaptor.capture());
+        assertThat(keyCaptor.getValue()).startsWith("original/");
+        verifyNoInteractions(trackRepository, transcodeTaskDispatcher);
+        assertThat(countWorkDirFiles()).isZero();
+    }
+
+    @Test
+    @DisplayName("원본 업로드 자체가 실패하면 삭제를 시도하지 않고 임시 파일을 정리한다")
+    void uploadSkipsCompensationWhenOriginalUploadFails() throws IOException {
+        stubValidator(null);
+        StorageException failure = new StorageException("putObject");
+        doThrow(failure).when(storageService).uploadFile(anyString(), any(Path.class), anyString());
+
+        assertThatThrownBy(() -> trackService.upload(request(null, null, null, null), null)).isSameAs(failure);
+
+        verify(storageService, never()).deleteObject(anyString());
+        verifyNoInteractions(trackRepository, transcodeTaskDispatcher);
+        assertThat(countWorkDirFiles()).isZero();
+    }
+
+    @Test
+    @DisplayName("보상 삭제가 실패해도 원래 예외가 전파되고 삭제 예외는 suppressed로 남는다")
+    void uploadKeepsOriginalExceptionWhenCompensationFails() {
+        stubEmbeddedArtworkUpload();
+        DataAccessResourceFailureException failure = new DataAccessResourceFailureException("db down");
+        when(trackRepository.save(any(Track.class))).thenThrow(failure);
+        StorageException deleteFailure = new StorageException("deleteObject");
+        doThrow(deleteFailure).when(storageService).deleteObject(anyString());
+
+        assertThatThrownBy(() -> trackService.upload(request(null, null, null, null), null))
+                .isSameAs(failure)
+                .hasSuppressedException(deleteFailure);
+
+        // 첫 삭제가 실패해도 나머지 객체 삭제를 계속 시도한다
+        verify(storageService, times(2)).deleteObject(anyString());
+    }
+
+    @Test
+    @DisplayName("임시 파일 삭제가 실패해도 원래 예외가 가려지지 않는다")
+    void uploadKeepsOriginalExceptionWhenTempDeleteFails() {
+        stubValidator(null);
+        DataAccessResourceFailureException failure = new DataAccessResourceFailureException("db down");
+        when(trackRepository.save(any(Track.class))).thenThrow(failure);
+        // 업로드 시점에 rawFile을 비어 있지 않은 디렉터리로 바꿔 deleteIfExists가 IOException을 던지게 한다
+        doAnswer(invocation -> {
+            Path file = invocation.getArgument(1);
+            Files.delete(file);
+            Files.createDirectory(file);
+            Files.writeString(file.resolve("child.txt"), "x");
+            return null;
+        }).when(storageService).uploadFile(anyString(), any(Path.class), anyString());
+
+        assertThatThrownBy(() -> trackService.upload(request(null, null, null, null), null)).isSameAs(failure);
     }
 }

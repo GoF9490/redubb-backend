@@ -22,6 +22,8 @@ import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,12 @@ import org.springframework.web.multipart.MultipartFile;
  * 조용히 바꾸지 않고 {@link InvalidRequestException}(400)으로 거부한다(공백만 있는 값은 "비어 있음"이라 통과).
  * 태그·파일명에서 파생된 최종 값이 한도를 넘으면 사용자 입력이 아니므로 한도까지 절단해 저장한다.
  * originalFilename(255)도 절단한다.
+ *
+ * <p><b>보상 처리:</b> 스토리지 업로드 이후 구간(앨범아트 업로드, 저장, 이벤트 발행, 커밋)에서
+ * {@link RuntimeException}이 나면 이미 올라간 원본·앨범아트를 삭제하고 원래 예외를 그대로 던진다.
+ * 한계: TransactionTemplate.execute가 커밋 직후 연결 오류 등으로 예외를 던지면 DB 커밋 여부가 불확실한데도
+ * 보상 삭제가 실행될 수 있다(극히 드문 경우, MVP 한계). 이 경우 DB에 PENDING 행이 남고 객체는 삭제되어
+ * T4-2의 변환이 FAILED로 끝난다. 커밋 실패 시 AFTER_COMMIT 리스너 미실행은 T4-5에서 통합 확인한다.
  *
  * <p><b>키 시간 기준:</b> 원본 키의 yyyy/mm은 주입된 {@link Clock}(운영은 UTC) 기준이다.
  */
@@ -129,41 +137,72 @@ public class TrackService {
             String originalKey = buildOriginalKey(trackId, extension);
             String artworkKey = artworkBytes != null ? "artwork/" + trackId + ".jpg" : null;
 
-            storageService.uploadFile(originalKey, rawFile, mimeType);
-            if (artworkKey != null) {
-                storageService.uploadBytes(artworkKey, artworkBytes, artworkMimeType);
+            // 보상 구간 밖에서 미리 계산해 업로드 이후에는 IOException이 발생하지 않게 한다
+            long fileSizeBytes = Files.size(rawFile);
+
+            // 실제 업로드에 성공한 키만 담으므로 보상 삭제에서 null 키가 호출되지 않는다
+            List<String> uploadedKeys = new ArrayList<>();
+            try {
+                storageService.uploadFile(originalKey, rawFile, mimeType);
+                uploadedKeys.add(originalKey);
+                if (artworkKey != null) {
+                    storageService.uploadBytes(artworkKey, artworkBytes, artworkMimeType);
+                    uploadedKeys.add(artworkKey);
+                }
+
+                return saveTrackAndDispatch(trackId, userId, metadata, originalFilename, extension, mimeType,
+                        fileSizeBytes, originalKey, artworkKey);
+            } catch (RuntimeException e) {
+                compensateUploads(uploadedKeys, e);
+                throw e;
             }
-
-            User uploader = userId != null ? userRepository.findById(userId).orElse(null) : null;
-            Instant now = Instant.now(clock);
-            Track track = Track.builder()
-                    .trackId(trackId)
-                    .uploader(uploader)
-                    .title(truncate(metadata.title(), TITLE_MAX_LENGTH))
-                    .artist(truncate(metadata.artist(), ARTIST_MAX_LENGTH))
-                    .album(truncate(metadata.album(), ALBUM_MAX_LENGTH))
-                    .durationSeconds(metadata.durationSeconds())
-                    .originalFilename(originalFilename)
-                    .fileExtension(extension)
-                    .fileSizeBytes(Files.size(rawFile))
-                    .mimeType(mimeType)
-                    .originalS3Key(originalKey)
-                    .artworkS3Key(artworkKey)
-                    .status(TrackStatus.PENDING)
-                    .createdAt(now)
-                    .updatedAt(now)
-                    .build();
-
-            return transactionTemplate.execute(status -> {
-                Track saved = trackRepository.save(track);
-                transcodeTaskDispatcher.dispatch(new TranscodeEventDto(saved.getTrackId(), originalKey));
-                return saved;
-            });
         } catch (IOException e) {
             throw new UncheckedIOException("업로드 파일 처리에 실패했습니다.", e);
         } finally {
             deleteQuietly(uploadTempFile);
             deleteQuietly(rawFile);
+        }
+    }
+
+    private Track saveTrackAndDispatch(UUID trackId, Long userId, AudioMetadata metadata, String originalFilename,
+                                       String extension, String mimeType, long fileSizeBytes,
+                                       String originalKey, String artworkKey) {
+        User uploader = userId != null ? userRepository.findById(userId).orElse(null) : null;
+        Instant now = Instant.now(clock);
+        Track track = Track.builder()
+                .trackId(trackId)
+                .uploader(uploader)
+                .title(truncate(metadata.title(), TITLE_MAX_LENGTH))
+                .artist(truncate(metadata.artist(), ARTIST_MAX_LENGTH))
+                .album(truncate(metadata.album(), ALBUM_MAX_LENGTH))
+                .durationSeconds(metadata.durationSeconds())
+                .originalFilename(originalFilename)
+                .fileExtension(extension)
+                .fileSizeBytes(fileSizeBytes)
+                .mimeType(mimeType)
+                .originalS3Key(originalKey)
+                .artworkS3Key(artworkKey)
+                .status(TrackStatus.PENDING)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        return transactionTemplate.execute(status -> {
+            Track saved = trackRepository.save(track);
+            transcodeTaskDispatcher.dispatch(new TranscodeEventDto(saved.getTrackId(), originalKey));
+            return saved;
+        });
+    }
+
+    /** 이미 올라간 객체를 삭제한다. 삭제 실패는 로그(key만)와 suppressed로만 남겨 원래 예외를 가리지 않는다. */
+    private void compensateUploads(List<String> uploadedKeys, RuntimeException cause) {
+        for (String key : uploadedKeys) {
+            try {
+                storageService.deleteObject(key);
+            } catch (RuntimeException deleteException) {
+                log.error("보상 삭제에 실패했습니다. key={}", key);
+                cause.addSuppressed(deleteException);
+            }
         }
     }
 
