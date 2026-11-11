@@ -8,6 +8,8 @@ import com.streaming.music.entity.TrackStatus;
 import com.streaming.music.entity.User;
 import com.streaming.music.exception.InvalidArtworkException;
 import com.streaming.music.exception.InvalidRequestException;
+import com.streaming.music.exception.TrackNotFoundException;
+import com.streaming.music.repository.LikePatternEscaper;
 import com.streaming.music.repository.TrackRepository;
 import com.streaming.music.repository.UserRepository;
 import com.streaming.music.service.AudioMetadataValidator.AudioMetadata;
@@ -26,8 +28,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -60,6 +66,8 @@ public class TrackService {
     static final int ALBUM_MAX_LENGTH = 200;
     static final int FILENAME_MAX_LENGTH = 255;
     static final String UNKNOWN_FILENAME = "unknown";
+    static final int MAX_PAGE_SIZE = 100;
+    static final int KEYWORD_MAX_LENGTH = 200;
 
     private final StorageService storageService;
     private final AudioMetadataValidator audioMetadataValidator;
@@ -162,6 +170,44 @@ public class TrackService {
             deleteQuietly(uploadTempFile);
             deleteQuietly(rawFile);
         }
+    }
+
+    /**
+     * 트랙 목록을 최신순(createdAt DESC)으로 조회한다.
+     *
+     * <p>size가 100을 넘으면 100으로 보정하고, page &lt; 0 또는 size &lt; 1이면 400으로 거부한다.
+     * keyword는 trim 후 200자를 넘으면 400이며, 비어 있으면 전체 조회로 처리한다.
+     */
+    @Transactional(readOnly = true)
+    public Page<Track> getTracks(String keyword, TrackStatus status, int page, int size) {
+        if (page < 0) {
+            throw new InvalidRequestException("page는 0 이상이어야 합니다.");
+        }
+        if (size < 1) {
+            throw new InvalidRequestException("size는 1 이상이어야 합니다.");
+        }
+        String trimmedKeyword = keyword == null ? "" : keyword.trim();
+        if (trimmedKeyword.length() > KEYWORD_MAX_LENGTH) {
+            throw new InvalidRequestException("keyword는 " + KEYWORD_MAX_LENGTH + "자를 초과할 수 없습니다.");
+        }
+
+        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE));
+        if (trimmedKeyword.isEmpty()) {
+            return status == null
+                    ? trackRepository.findAllByOrderByCreatedAtDesc(pageable)
+                    : trackRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
+        }
+        String pattern = LikePatternEscaper.toContainsPattern(trimmedKeyword);
+        return status == null
+                ? trackRepository.searchByKeyword(pattern, pageable)
+                : trackRepository.searchByKeywordAndStatus(pattern, status, pageable);
+    }
+
+    /** 트랙 단건을 조회한다. 모든 status를 허용하며 없으면 {@link TrackNotFoundException}. */
+    @Transactional(readOnly = true)
+    public Track getTrack(UUID trackId) {
+        return trackRepository.findById(trackId)
+                .orElseThrow(() -> new TrackNotFoundException("트랙을 찾을 수 없습니다. trackId=" + trackId));
     }
 
     private Track saveTrackAndDispatch(UUID trackId, Long userId, AudioMetadata metadata, String originalFilename,
