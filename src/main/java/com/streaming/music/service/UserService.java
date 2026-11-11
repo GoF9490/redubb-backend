@@ -1,0 +1,55 @@
+package com.streaming.music.service;
+
+import com.streaming.music.entity.User;
+import com.streaming.music.repository.UserRepository;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Objects;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 회원 조회/자동 생성/갱신(Upsert) 서비스 (PRD-05 §6.1).
+ *
+ * <p>MVP 한계:
+ * <ul>
+ *   <li>email 변경으로 uk_users_email 유니크 충돌이 나면 DataIntegrityViolationException이 그대로 전파된다.</li>
+ *   <li>동일 사용자의 동시 최초 로그인(uk_users_provider_id 위반)도 처리하지 않고 예외를 전파한다.</li>
+ * </ul>
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final Clock clock;
+
+    /**
+     * providerId(sub) 기준으로 회원을 갱신하거나, 없으면 신규 생성한다.
+     */
+    public User upsertUser(OAuth2UserInfo info) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(info.providerId(), "providerId");
+        Objects.requireNonNull(info.email(), "email");
+
+        Instant now = Instant.now(clock);
+        return userRepository.findByProviderId(info.providerId())
+                .map(user -> {
+                    // 영속 상태이므로 변경 감지로 반영된다 (save 불필요)
+                    user.updateProfile(info.email(), info.profileImageUrl());
+                    user.updateLastLogin(now);
+                    return user;
+                })
+                .orElseGet(() -> userRepository.save(User.builder()
+                        .provider(User.PROVIDER_GOOGLE)
+                        .providerId(info.providerId())
+                        .email(info.email())
+                        .profileImageUrl(info.profileImageUrl())
+                        .role(User.ROLE_USER)
+                        .createdAt(now)
+                        .lastLoginAt(now)
+                        .build()));
+    }
+}

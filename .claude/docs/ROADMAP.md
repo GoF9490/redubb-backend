@@ -120,15 +120,16 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [구현] LIKE 와일드카드(`%`, `_`) 이스케이프 여부 결정
   - [검토] 벌크 UPDATE 후 영속성 컨텍스트 clear(`clearAutomatically`)와 `updatedAt` 처리
 
-### [ ] T1-3 `UserService` (Upsert)
+### [x] T1-3 `UserService` (Upsert)
 - **목표:** OAuth2 정보(`sub`, `email`, `picture`)로 회원 조회/자동 생성/갱신(`lastLoginAt`).
 - **선행:** T1-2
 - **완료 조건:**
-  - [ ] `UserServiceTest` 1: 최초 로그인 시 신규 `User`(provider=GOOGLE, role=ROLE_USER, profileImageUrl) 저장
-  - [ ] `UserServiceTest` 2: 기존 `providerId`면 중복 저장 없이 email·profileImageUrl·lastLoginAt 갱신 후 반환
-  - [ ] `./gradlew test` 통과
+  - [x] `UserServiceTest` 1: 최초 로그인 시 신규 `User`(provider=GOOGLE, role=ROLE_USER, profileImageUrl) 저장
+  - [x] `UserServiceTest` 2: 기존 `providerId`면 중복 저장 없이 email·profileImageUrl·lastLoginAt 갱신 후 반환
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [계획] 이메일이 변경된 기존 회원의 email 유니크 충돌 처리 범위(MVP는 로그만/예외) 결정 후 기록
+    - **결정(기록):** MVP는 사전 조회 없이 `DataIntegrityViolationException`을 그대로 전파한다. 동시 최초 로그인 경합(`uk_users_provider_id` 위반)도 미처리이며 재로그인 시 정상 동작한다. 기존 회원의 `picture`가 null이면 null로 덮어쓴다(PRD "최신값 갱신"). 메서드명은 `upsertUser`이므로 T6-4는 `upsertUser`를 호출한다. 시간은 `config/ClockConfig`의 `Clock` 빈을 주입한다.
   - [구현] 트랜잭션 경계(`@Transactional`)
 
 ### [ ] T1-4 `PlaybackLogService`
