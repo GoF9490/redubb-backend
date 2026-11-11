@@ -331,16 +331,19 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
     - **확인(기록):** 정리 로직을 package-private `deleteWorkDir`로 분리하고 Mockito spy로 정리 실패를 결정적으로 재현해 READY/FAILED 결과가 가려지지 않음을 검증했다.
   - **알려진 한계(기록):** 업로드 도중 실패한 트랙의 부분 업로드 객체(`hls/{uuid}/`)는 정리하지 않는다(`StorageService`에 prefix 삭제 API 없음). 인터럽트 플래그가 선 채로의 `FAILED` 기록은 최선 노력(로그만)이며, 이때 `PROCESSING`으로 남은 트랙은 T4-4 기동 복구가 정리한다.
 
-### [ ] T4-4 `TranscodeRecoveryRunner`
+### [x] T4-4 `TranscodeRecoveryRunner`
 - **목표:** 기동 시 `updatedAt`이 `ffmpeg-timeout-minutes × 2` 이상 경과한 `PENDING/PROCESSING` 트랙만 `FAILED("INTERRUPTED_BY_RESTART")`로 갱신한다(자동 재변환 제외).
 - **선행:** T1-2
 - **완료 조건:**
-  - [ ] `TranscodeRecoveryRunnerTest`: `Clock` 고정 시 threshold 시각이 `now - timeout×2`로 계산되어 리포지토리에 전달
-  - [ ] 갱신 건수 0건일 때도 정상 종료
-  - [ ] `./gradlew test` 통과
+  - [x] `TranscodeRecoveryRunnerTest`: `Clock` 고정 시 threshold 시각이 `now - timeout×2`로 계산되어 리포지토리에 전달
+  - [x] 갱신 건수 0건일 때도 정상 종료
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [계획] 다중 노드 재시작 시 정상 변환 중인 트랙 보호가 핵심(PRD-05 §6.3-5)
+    - **결정(기록):** 같은 조건의 UPDATE가 중복 실행될 뿐이라 멱등이며, 정상 변환 중인 `PROCESSING`은 `updatedAt`이 최근이라 기본값(timeout 3분) 기준 6분 이내에는 보호된다. `TransactionTemplate`으로 벌크 UPDATE의 트랜잭션 경계를 명시한다. 복구 쿼리 실패는 `error` 로그만 남기고 기동을 계속한다(복구는 부가 정리이며 멱등이라 다음 기동 때 재정리).
+    - **알려진 한계(기록):** 변환 큐가 용량 50·core 1이라 부하 시 큐 뒤쪽 `PENDING`은 수십 분 대기할 수 있다. 큐 대기가 `timeout×2`(6분)를 넘는 `PENDING`은 다른 노드 재시작 시 `FAILED("INTERRUPTED_BY_RESTART")`가 될 수 있다(이후 워커가 꺼내도 `HlsTranscodeService`의 `PENDING` 가드가 `FAILED` 트랙을 건너뜀). PRD 정책(`updatedAt` 기준)을 따른 한계이며 `PENDING` 임계 분리 같은 개선은 MVP 이후로 미룬다.
   - [검토] 테스트 프로파일에서 Runner가 실제 DB를 건드려 다른 테스트에 영향 주지 않는지
+    - **확인(기록):** `@Profile("!test")`로 `@SpringBootTest`(`local`+`test`)에서는 Runner가 등록되지 않는다(Runner 로그가 나온 결과 파일은 `TranscodeRecoveryRunnerTest` 하나뿐).
 
 ### [ ] T4-5 이벤트 연결 통합 확인
 - **목표:** 업로드 트랜잭션 **커밋 이후**에만 변환 리스너가 호출되는지 확인한다.
