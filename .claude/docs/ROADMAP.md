@@ -148,14 +148,14 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 
 ## Phase 2 — 외부 인프라 추상화·미디어 처리 컴포넌트
 
-### [ ] T2-1 `MediaUrlResolver`
+### [x] T2-1 `MediaUrlResolver`
 - **목표:** S3 키 ➔ `streamUrl`/`artworkUrl` 변환(`app.media.public-base-url` 적용).
 - **선행:** T0-3
 - **완료 조건:**
-  - [ ] `MediaUrlResolverTest`: base 빈 값 → `/stream/{uuid}/index.m3u8`, 값 있음 → `{base}/stream/...`
-  - [ ] `artworkS3Key == null` → `artworkUrl == null`
-  - [ ] base 끝에 `/`가 있어도 `//` 중복 없음
-  - [ ] `./gradlew test` 통과
+  - [x] `MediaUrlResolverTest`: base 빈 값 → `/stream/{uuid}/index.m3u8`, 값 있음 → `{base}/stream/...`
+  - [x] `artworkS3Key == null` → `artworkUrl == null`
+  - [x] base 끝에 `/`가 있어도 `//` 중복 없음
+  - [x] `./gradlew test` 통과
 - **주의:** [구현] DB에는 URL이 아닌 S3 키만 저장(`hls_playlist_key`)
 
 ### [ ] T2-2 `StorageService` 인터페이스 + MinIO 구현 (단건 연산)
