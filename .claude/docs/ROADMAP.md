@@ -71,12 +71,12 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [탐색] Boot 4/Spring 7에서 `MaxUploadSizeExceededException`, `MethodArgumentTypeMismatchException`의 패키지·핸들링 위치
   - [검토] 테스트용 컨트롤러는 `src/test`에만 두고 운영 코드에 섞지 않는다
 
-### [ ] T0-5 최소 Security 설정
+### [x] T0-5 최소 Security 설정
 - **목표:** 이후 Phase 6에서 확장할 최소 `SecurityConfig`(STATELESS, csrf/formLogin/httpBasic 비활성, 전체 `permitAll`)를 만든다.
 - **선행:** T0-1
 - **완료 조건:**
-  - [ ] `@WebMvcTest` 슬라이스로 임의 경로 요청 시 로그인 페이지 리다이렉트(302)가 없고 `404`(또는 컨트롤러 응답)가 반환
-  - [ ] 응답에 `Set-Cookie: JSESSIONID`가 없음
+  - [x] `@WebMvcTest` 슬라이스로 임의 경로 요청 시 로그인 페이지 리다이렉트(302)가 없고 `404`(또는 컨트롤러 응답)가 반환
+  - [x] 응답에 `Set-Cookie: JSESSIONID`가 없음
 - **주의:**
   - [계획] `/api/auth/me`만 인증 필수로 두는 확정은 T6-2에서 한다(여기서는 골격만)
   - [검토] OAuth2 Client 스타터가 클라이언트 등록 없이 기동 실패하지 않는지
