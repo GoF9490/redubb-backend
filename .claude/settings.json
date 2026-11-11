@@ -1,0 +1,39 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "enabledPlugins": {
+    "spring-tools-language-server-claude-code-plugin@anthropic-plugin-directory": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew test)", "Bash(./gradlew test *)",
+      "Bash(./gradlew build)", "Bash(./gradlew build *)",
+      "Bash(git status)", "Bash(git status *)",
+      "Bash(git diff)", "Bash(git diff *)",
+      "PowerShell(./gradlew test)", "PowerShell(./gradlew test *)",
+      "PowerShell(./gradlew build)", "PowerShell(./gradlew build *)",
+      "PowerShell(.\\gradlew.bat test)", "PowerShell(.\\gradlew.bat test *)",
+      "PowerShell(.\\gradlew.bat build)", "PowerShell(.\\gradlew.bat build *)",
+      "PowerShell(git status)", "PowerShell(git status *)",
+      "PowerShell(git diff)", "PowerShell(git diff *)"
+    ],
+    "deny": [
+      "Read(./.env)", "Read(./.env.*)", "Read(**/.env)", "Read(**/.env.*)",
+      "Read(./secrets/**)", "Read(**/*.pem)", "Read(**/*.key)",
+      "Read(**/*.p12)", "Read(**/*.jks)", "Read(**/application-secret*.yaml)",
+      "Read(**/credentials*.json)",
+      "Bash(git push)", "Bash(git push *)",
+      "PowerShell(git push)", "PowerShell(git push *)",
+      "Bash(rm -rf *)", "Bash(rm -r *)",
+      "Bash(git reset --hard *)", "Bash(git clean *)",
+      "Bash(git checkout -- *)", "Bash(git restore *)",
+      "Bash(git branch -D *)", "Bash(git rebase *)",
+      "PowerShell(Remove-Item *)", "PowerShell(rm *)", "PowerShell(del *)",
+      "PowerShell(git reset --hard *)", "PowerShell(git clean *)",
+      "PowerShell(git checkout -- *)", "PowerShell(git restore *)",
+      "PowerShell(git branch -D *)", "PowerShell(git rebase *)",
+      "PowerShell(Format-Volume *)"
+    ]
+  }
+}
