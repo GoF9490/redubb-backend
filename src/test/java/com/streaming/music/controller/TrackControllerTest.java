@@ -2,7 +2,11 @@ package com.streaming.music.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -16,10 +20,16 @@ import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
 import com.streaming.music.exception.GlobalExceptionHandler;
 import com.streaming.music.exception.InvalidAudioFormatException;
+import com.streaming.music.exception.InvalidRequestException;
+import com.streaming.music.exception.TrackNotFoundException;
 import com.streaming.music.service.MediaUrlResolver;
 import com.streaming.music.service.TrackService;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -137,5 +147,159 @@ class TrackControllerTest {
         mockMvc.perform(multipart("/api/tracks/upload").file(audio))
                 .andExpect(status().isContentTooLarge())
                 .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"));
+    }
+
+    private void stubEmptyPage() {
+        when(trackService.getTracks(any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
+    }
+
+    @Test
+    @DisplayName("파라미터가 없으면 기본값 page 0, size 20으로 서비스를 호출한다")
+    void returnPageWithDefaults() throws Exception {
+        stubEmptyPage();
+
+        mockMvc.perform(get("/api/tracks")).andExpect(status().isOk());
+
+        verify(trackService).getTracks(isNull(), isNull(), eq(0), eq(20));
+    }
+
+    @Test
+    @DisplayName("쿼리 파라미터가 그대로 서비스에 전달된다")
+    void passQueryParamsToService() throws Exception {
+        stubEmptyPage();
+
+        mockMvc.perform(get("/api/tracks").param("keyword", "kw").param("status", "READY")
+                        .param("page", "2").param("size", "50"))
+                .andExpect(status().isOk());
+
+        verify(trackService).getTracks("kw", TrackStatus.READY, 2, 50);
+    }
+
+    @Test
+    @DisplayName("size=500도 컨트롤러가 보정하지 않고 서비스에 전달한다")
+    void passOversizedSizeUntouched() throws Exception {
+        stubEmptyPage();
+
+        mockMvc.perform(get("/api/tracks").param("size", "500")).andExpect(status().isOk());
+
+        verify(trackService).getTracks(isNull(), isNull(), eq(0), eq(500));
+    }
+
+    @Test
+    @DisplayName("빈 문자열 status/keyword는 400이 아니라 서비스에 전달된다")
+    void passEmptyStringParams() throws Exception {
+        stubEmptyPage();
+
+        mockMvc.perform(get("/api/tracks").param("status", "").param("keyword", ""))
+                .andExpect(status().isOk());
+
+        verify(trackService).getTracks(eq(""), isNull(), eq(0), eq(20));
+    }
+
+    @Test
+    @DisplayName("목록 응답은 고정 스키마 6개 키이며 항목에 errorMessage가 없다")
+    void returnFixedPageSchema() throws Exception {
+        Track track = createTrack();
+        when(trackService.getTracks(any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageImpl<>(List.of(track), PageRequest.of(0, 1), 3));
+        when(mediaUrlResolver.resolveArtworkUrl(track)).thenReturn("/artwork/k.jpg");
+
+        mockMvc.perform(get("/api/tracks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.*", hasSize(6)))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.content[0].trackId").value(track.getTrackId().toString()))
+                .andExpect(jsonPath("$.content[0].artworkUrl").value("/artwork/k.jpg"))
+                .andExpect(jsonPath("$.content[0].errorMessage").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("빈 페이지는 200과 빈 content를 반환한다")
+    void returnEmptyPage() throws Exception {
+        stubEmptyPage();
+
+        mockMvc.perform(get("/api/tracks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    @DisplayName("잘못된 status 값(FOO, 소문자 ready)은 400 INVALID_REQUEST이다")
+    void rejectInvalidStatus() throws Exception {
+        for (String value : List.of("FOO", "ready")) {
+            mockMvc.perform(get("/api/tracks").param("status", value))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+
+        verifyNoInteractions(trackService);
+    }
+
+    @Test
+    @DisplayName("숫자가 아닌 page/size는 400 INVALID_REQUEST이다")
+    void rejectNonNumericPaging() throws Exception {
+        mockMvc.perform(get("/api/tracks").param("page", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        mockMvc.perform(get("/api/tracks").param("size", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        verifyNoInteractions(trackService);
+    }
+
+    @Test
+    @DisplayName("서비스의 InvalidRequestException은 400 INVALID_REQUEST이다")
+    void rejectNegativePage() throws Exception {
+        when(trackService.getTracks(any(), any(), anyInt(), anyInt())).thenThrow(new InvalidRequestException());
+
+        mockMvc.perform(get("/api/tracks").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("상세 조회는 200과 11개 필드를 반환하고 errorMessage를 노출하지 않는다")
+    void returnTrackDetail() throws Exception {
+        Track track = createTrack();
+        when(trackService.getTrack(track.getTrackId())).thenReturn(track);
+        when(mediaUrlResolver.resolveArtworkUrl(track)).thenReturn("/artwork/k.jpg");
+
+        mockMvc.perform(get("/api/tracks/{trackId}", track.getTrackId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.*", hasSize(11)))
+                .andExpect(jsonPath("$.trackId").value(track.getTrackId().toString()))
+                .andExpect(jsonPath("$.artworkUrl").value("/artwork/k.jpg"))
+                .andExpect(jsonPath("$.createdAt").value("2026-11-11T01:00:00Z"))
+                .andExpect(jsonPath("$.errorMessage").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("잘못된 UUID 경로(GET /upload 포함)는 400 INVALID_REQUEST이고 서비스를 호출하지 않는다")
+    void rejectInvalidUuid() throws Exception {
+        mockMvc.perform(get("/api/tracks/not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        mockMvc.perform(get("/api/tracks/upload"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        verifyNoInteractions(trackService);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 트랙은 404 TRACK_NOT_FOUND이다")
+    void returnNotFoundForMissingTrack() throws Exception {
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getTrack(trackId)).thenThrow(new TrackNotFoundException());
+
+        mockMvc.perform(get("/api/tracks/{trackId}", trackId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("TRACK_NOT_FOUND"));
     }
 }

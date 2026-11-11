@@ -374,14 +374,15 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 - **주의:** [구현] Spring `Page`를 그대로 직렬화하지 않는다
   - **구현 메모(기록):** `TrackService.getTracks(keyword, status, page, size)`는 `Page<Track>`, `getTrack(UUID)`는 `Track`을 반환하고 DTO 변환은 T5-2 컨트롤러가 `TrackPageResponse.from(Page<Track>, MediaUrlResolver)`/`TrackResponse.from`으로 한다(T3-4와 동일 방식). 분기: keyword 없음/있음 × status 없음/있음 = 4개 repository 메서드. 정책: `size>100`은 100으로 보정, `page<0`·`size<1`은 `InvalidRequestException`(400), keyword는 trim 후 200자 초과 시 400(제목 한도와 맞춤), 공백 keyword는 전체 조회, 상세 조회는 모든 status 허용. 조회 메서드는 `@Transactional(readOnly = true)`(TrackService가 CGLIB 프록시가 되지만 기존 통합 테스트는 영향 없음). `TrackResponse.from`은 LAZY `uploader`를 읽지 않는다. `TrackPageResponse`의 JSON 직렬화(고정 6필드) 확인은 T5-2 `@WebMvcTest`에서 한다. 테스트는 기존 `TrackServiceTest`를 건드리지 않고 `TrackQueryServiceTest`로 분리했다.
 
-### [ ] T5-2 목록·상세 컨트롤러
+### [x] T5-2 목록·상세 컨트롤러
 - **목표:** `GET /api/tracks`, `GET /api/tracks/{trackId}`.
 - **선행:** T5-1
 - **완료 조건:**
-  - [ ] `@WebMvcTest`: 기본값(page 0, size 20), 쿼리 파라미터 전달 검증
-  - [ ] 잘못된 UUID → `400`, 없는 트랙 → `404 TRACK_NOT_FOUND`
-  - [ ] `./gradlew test` 통과
+  - [x] `@WebMvcTest`: 기본값(page 0, size 20), 쿼리 파라미터 전달 검증
+  - [x] 잘못된 UUID → `400`, 없는 트랙 → `404 TRACK_NOT_FOUND`
+  - [x] `./gradlew test` 통과
 - **주의:** [검토] `status` 파라미터가 잘못된 enum 값일 때 `400 INVALID_REQUEST`
+  - **확인(기록):** 실행으로 확인 — `status=FOO`·소문자 `ready`·`page=abc`·`size=abc`는 400 `INVALID_REQUEST`(enum 변환은 대소문자 구분이며 그대로 둔다). `status=`/`keyword=`(빈 값)는 400이 아니라 서비스에 `status=null`, `keyword=""`로 전달된다. `size=500`은 컨트롤러가 보정하지 않고 서비스에 전달(보정은 서비스 책임). `GET /api/tracks/upload`는 UUID 변환 실패로 400. 목록 응답은 키 정확히 6개, 상세는 11개 필드(`errorMessage` 미노출), `createdAt`은 `Z` 포함 ISO-8601.
 
 ### [ ] T5-3 재생 진입점
 - **목표:** `getPlayInfo`와 `GET /api/tracks/{id}/play` (`READY` 검증, `409`, `STREAM` 이력).
