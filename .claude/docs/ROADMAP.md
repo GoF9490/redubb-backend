@@ -422,14 +422,17 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 
 ## Phase 6 — 인증 (Google OAuth2 + JWT)
 
-### [ ] T6-1 `JwtTokenProvider`
+### [x] T6-1 `JwtTokenProvider`
 - **목표:** HMAC-SHA256 JWT 생성·파싱·검증(`sub=userId`, `role`).
 - **선행:** T0-3
 - **완료 조건:**
-  - [ ] `JwtTokenProviderTest`: 정상 토큰 왕복, 만료 토큰 거부, 서명 위조 거부, 형식 오류 거부
-  - [ ] 서명 키가 32바이트 미만이면 기동/생성 시 명확한 예외
-  - [ ] `./gradlew test` 통과
+  - [x] `JwtTokenProviderTest`: 정상 토큰 왕복, 만료 토큰 거부, 서명 위조 거부, 형식 오류 거부
+  - [x] 서명 키가 32바이트 미만이면 기동/생성 시 명확한 예외
+  - [x] `./gradlew test` 통과
 - **주의:** [구현] JJWT 0.12.x 신 API(`Jwts.builder().signWith(key)`, `parser().verifyWith`) 사용, `Clock`/만료 주입으로 테스트 가능하게
+  - **구현 메모(기록):** API는 `String createToken(Long userId, String role)`와 `Optional<JwtClaims> parseToken(String token)`이다. 무효 토큰(null·공백·형식 오류·만료·위조·비숫자 subject·`role` 부재)은 예외 없이 `Optional.empty()`를 반환하므로 T6-2 필터는 `parseToken(...).ifPresent(...)`만 쓰면 된다(무효 토큰은 익명 통과). 키는 UTF-8 **32바이트 이상**(PRD의 "32자"는 ASCII 기준이며 바이트 기준이 더 엄격), 미만이면 빈 생성 시 `IllegalStateException`(메시지에 키 값 없음). 만료는 주입된 `java.time.Clock` 기준(경계 테스트로 확인). 로그는 분류 문자열만 남긴다(만료 debug, 그 외 warn).
+  - **보안 확인(기록):** `verifyWith`만으로는 키가 충분히 길면 같은 키로 서명한 HS384/HS512 토큰도 통과하므로, 파싱 후 헤더 알고리즘이 정확히 HS256인지 명시적으로 확인한다. 68바이트 키로 서명한 HS512 토큰이 거부됨을 테스트로 확인했다. `alg=none`·서명 없는 토큰·다른 키 서명·payload 변조도 모두 거부된다.
+  - **Jackson 공존 확인(기록, T0-1 이관 항목):** `jjwt-jackson 0.12.6`(jackson-databind 2.21.7)과 Boot의 Jackson 3(`tools.jackson`)가 클래스패스에 함께 있는 상태에서 실제 토큰 생성·파싱 왕복이 통과했다. 충돌 없음.
 
 ### [ ] T6-2 JWT 필터·`/api/auth/me`·Security 확정
 - **목표:** `JwtAuthenticationFilter`(무효 토큰은 익명 통과), `RestAuthenticationEntryPoint`(401 공통 JSON), `AuthController`, `SecurityConfig`에서 `/api/auth/me`만 인증 필수.

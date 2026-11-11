@@ -220,7 +220,7 @@ spring:
 # 커스텀 인프라 및 미디어 설정 (@ConfigurationProperties 바인딩 대상)
 app:
   jwt: # JwtProperties
-    secret-key: ${JWT_SECRET_KEY} # 민감 정보: 최소 256비트(32자 이상) 환경변수 주입
+    secret-key: ${JWT_SECRET_KEY} # 민감 정보: 최소 256비트(UTF-8 기준 32바이트 이상, 미만이면 기동 실패) 환경변수 주입
     access-token-expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 기본 24시간
     default-redirect-uri: ${OAUTH2_DEFAULT_REDIRECT_URI:http://localhost/auth/callback} # redirect_uri 미지정 시 기본값
     allowed-redirect-uris: ${OAUTH2_ALLOWED_REDIRECT_URIS:http://localhost/auth/callback,musicapp://oauth2/callback} # 화이트리스트 (쉼표 구분)
