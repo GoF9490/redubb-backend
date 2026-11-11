@@ -1,12 +1,106 @@
+# ============================================================
+# 공통 설정 (모든 프로파일)
+# ============================================================
+server:
+  port: 8080
+  forward-headers-strategy: framework # Nginx 리버스 프록시 뒤에서 OAuth2 리다이렉트 URI 정상 인식
+
 spring:
   application:
-    name: music
-  h2:
-    console:
-      enabled: true # 웹 콘솔 활성화 (접속 주소: http://localhost:8080/h2-console)
-      path: /h2-console
+    name: music-streaming-backend
+  profiles:
+    default: local # 별도 지정이 없으면 로컬(H2) 프로파일로 기동
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${MAX_UPLOAD_SIZE:100MB}
+      max-request-size: ${MAX_REQUEST_SIZE:110MB} # 음원 파일(100MB) + 커스텀 앨범자켓 이미지(10MB)
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+    open-in-view: false # OSIV 비활성화로 DB 커넥션 고갈 방지
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}         # 민감 정보: 환경변수 필수 주입
+            client-secret: ${GOOGLE_CLIENT_SECRET} # 민감 정보: 환경변수 필수 주입
+            scope:
+              - openid
+              - email
+              - profile # 우측 상단 프로필 아바타 이미지(picture 클레임) 표시용
+
+# 커스텀 인프라 및 미디어 설정 (@ConfigurationProperties 바인딩 대상)
+app:
+  jwt: # JwtProperties
+    secret-key: ${JWT_SECRET_KEY} # 민감 정보: 최소 256비트(32자 이상) 환경변수 주입
+    access-token-expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 기본 24시간
+    default-redirect-uri: ${OAUTH2_DEFAULT_REDIRECT_URI:http://localhost/auth/callback} # redirect_uri 미지정 시 기본값
+    allowed-redirect-uris: ${OAUTH2_ALLOWED_REDIRECT_URIS:http://localhost/auth/callback,musicapp://oauth2/callback} # 화이트리스트 (쉼표 구분)
+
+  storage: # StorageProperties
+    endpoint: ${STORAGE_ENDPOINT:http://rustfs:9000} # presigned URL 서명 Host 기준. Nginx의 STORAGE_HOST_HEADER와 반드시 일치
+    region: ${STORAGE_REGION:us-east-1} # presign 시 GetBucketLocation 추가 호출 생략용 고정 리전
+    access-key: ${RUSTFS_ACCESS_KEY} # 민감 정보: 환경변수 필수 주입
+    secret-key: ${RUSTFS_SECRET_KEY} # 민감 정보: 환경변수 필수 주입
+    bucket-name: ${STORAGE_BUCKET_NAME:audio-storage}
+    presigned-expiry-seconds: ${STORAGE_PRESIGNED_EXPIRY_SECONDS:60} # 원본 다운로드용 presigned URL 유효 시간
+
+  audio: # AudioProperties
+    work-dir: ${AUDIO_WORK_DIR:/tmp/audio-work}
+    ffmpeg-path: ${FFMPEG_PATH:/usr/bin/ffmpeg}
+    ffmpeg-timeout-minutes: ${FFMPEG_TIMEOUT_MINUTES:3} # PRD-06 §5: 초과 시 강제 종료 후 FAILED
+    hls-segment-seconds: 6
+    hls-audio-bitrate: 192k
+    max-artwork-size-bytes: 10485760 # 커스텀 앨범자켓 최대 10MB
+
+  media: # MediaProperties
+    public-base-url: ${MEDIA_PUBLIC_BASE_URL:} # streamUrl/artworkUrl 접두어. 기본값(빈 값) = 단일 오리진 상대경로("/stream/...")
+
+  cors: # CorsProperties
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:} # 기본값(빈 값) = 단일 오리진이므로 CORS 비활성. 웹 분리 배포 시 오리진 지정
+
+---
+# ============================================================
+# local 프로파일: H2 인메모리 DB (PRD-05 §9)
+# ============================================================
+spring:
+  config:
+    activate:
+      on-profile: local
   datasource:
-    url: jdbc:h2:mem:testdb # 인메모리 DB 모드
+    url: jdbc:h2:mem:streaming_db;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password:
+  h2:
+    console:
+      enabled: true # 접속 주소: http://localhost:8080/h2-console
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+---
+# ============================================================
+# prod 프로파일: PostgreSQL (PRD-07) — 통합 테스트/클러스터 구동
+# ============================================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:postgres-db}:${DB_PORT:5432}/${DB_NAME:streaming_db}
+    username: ${DB_USERNAME:streaming_user}
+    password: ${DB_PASSWORD} # 민감 정보: 환경변수 필수 주입
+  jpa:
+    hibernate:
+      ddl-auto: validate # 스키마는 PRD-07 init.sql이 소유. 엔티티 불일치 시 기동 실패

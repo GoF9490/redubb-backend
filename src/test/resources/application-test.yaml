@@ -1,0 +1,16 @@
+# 테스트 전용 더미 값 (실제 시크릿 아님). @ActiveProfiles({"local", "test"})로 로드된다.
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+
+app:
+  jwt:
+    secret-key: test-only-jwt-secret-key-at-least-32-chars-long
+  storage:
+    access-key: test-access-key
+    secret-key: test-secret-key
