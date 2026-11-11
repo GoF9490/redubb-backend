@@ -7,12 +7,14 @@ import com.streaming.music.dto.response.TrackPageResponse;
 import com.streaming.music.dto.response.TrackResponse;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
+import com.streaming.music.security.AuthenticatedUser;
 import com.streaming.music.service.MediaUrlResolver;
 import com.streaming.music.service.TrackService;
 import java.util.UUID;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,9 +44,10 @@ public class TrackController {
             @RequestPart(value = "artworkFile", required = false) MultipartFile artworkFile,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String artist,
-            @RequestParam(required = false) String album) {
+            @RequestParam(required = false) String album,
+            @AuthenticationPrincipal AuthenticatedUser user) {
         TrackUploadRequest request = new TrackUploadRequest(file, title, artist, album, artworkFile);
-        Track track = trackService.upload(request, resolveUserId());
+        Track track = trackService.upload(request, resolveUserId(user));
         return ResponseEntity.accepted().body(TrackResponse.from(track, mediaUrlResolver));
     }
 
@@ -70,8 +73,9 @@ public class TrackController {
 
     /** 재생 진입점 조회. READY가 아니면 409, 없으면 404. 성공 시 STREAM 이력이 기록된다. */
     @GetMapping("/{trackId}/play")
-    public StreamPlayResponse getPlayInfo(@PathVariable UUID trackId) {
-        return trackService.getPlayInfo(trackId, resolveUserId());
+    public StreamPlayResponse getPlayInfo(
+            @PathVariable UUID trackId, @AuthenticationPrincipal AuthenticatedUser user) {
+        return trackService.getPlayInfo(trackId, resolveUserId(user));
     }
 
     /**
@@ -80,8 +84,9 @@ public class TrackController {
      * <p>Nginx의 헤더 유지와 presigned 쿼리 보존의 실제 확인은 통합 테스트(T7-3) 소관이다.
      */
     @GetMapping("/{trackId}/download")
-    public ResponseEntity<Void> getDownloadInfo(@PathVariable UUID trackId) {
-        DownloadInfo info = trackService.getDownloadInfo(trackId, resolveUserId());
+    public ResponseEntity<Void> getDownloadInfo(
+            @PathVariable UUID trackId, @AuthenticationPrincipal AuthenticatedUser user) {
+        DownloadInfo info = trackService.getDownloadInfo(trackId, resolveUserId(user));
         return ResponseEntity.ok()
                 .header("X-Accel-Redirect", info.xAccelRedirectUri())
                 .header(HttpHeaders.CONTENT_DISPOSITION, info.contentDisposition())
@@ -90,12 +95,12 @@ public class TrackController {
     }
 
     /**
-     * 요청 사용자의 userId를 반환한다.
+     * 인증된 사용자의 userId를 반환한다. 토큰이 없거나 무효이면 익명이므로 null이다.
      *
-     * <p>T6-7 연결 지점: 인증 연결 전이므로 현재는 항상 null(비로그인 업로드)이다.
-     * T6-7에서 SecurityContext의 Principal(Long userId)을 변환하도록 이 메서드만 교체한다.
+     * <p>요청 파라미터로 userId를 받지 않으며 JWT 필터가 검증한 Principal만 신뢰한다.
+     * 존재하지 않는 userId(삭제된 회원)는 서비스가 익명으로 대체한다.
      */
-    private Long resolveUserId() {
-        return null;
+    private Long resolveUserId(AuthenticatedUser user) {
+        return user == null ? null : user.userId();
     }
 }

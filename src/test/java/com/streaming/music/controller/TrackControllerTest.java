@@ -7,6 +7,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -28,12 +30,14 @@ import com.streaming.music.exception.GlobalExceptionHandler;
 import com.streaming.music.exception.InvalidAudioFormatException;
 import com.streaming.music.exception.InvalidRequestException;
 import com.streaming.music.exception.TrackNotFoundException;
+import com.streaming.music.security.JwtClaims;
 import com.streaming.music.security.JwtTokenProvider;
 import com.streaming.music.security.RestAuthenticationEntryPoint;
 import com.streaming.music.service.MediaUrlResolver;
 import com.streaming.music.service.TrackService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -378,6 +382,118 @@ class TrackControllerTest {
         mockMvc.perform(get("/api/tracks/not-a-uuid/download"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    private static final String VALID_TOKEN = "valid-token";
+    private static final String INVALID_TOKEN = "invalid-token";
+    private static final long TOKEN_USER_ID = 7L;
+
+    private void stubValidToken() {
+        when(jwtTokenProvider.parseToken(VALID_TOKEN))
+                .thenReturn(Optional.of(new JwtClaims(TOKEN_USER_ID, "ROLE_USER")));
+        when(jwtTokenProvider.parseToken(INVALID_TOKEN)).thenReturn(Optional.empty());
+    }
+
+    private StreamPlayResponse createPlayResponse(UUID trackId) {
+        return new StreamPlayResponse(trackId, "/stream/x/index.m3u8", "제목", "가수", 215, null);
+    }
+
+    private DownloadInfo createDownloadInfo() {
+        return new DownloadInfo("/internal-storage/k.mp3", "attachment; filename=\"a.mp3\"", "audio/mpeg");
+    }
+
+    @Test
+    @DisplayName("유효 토큰으로 업로드하면 토큰의 userId가 서비스에 전달되고 userId 폼 필드는 무시된다")
+    void passTokenUserIdOnUpload() throws Exception {
+        stubValidToken();
+        when(trackService.upload(any(), eq(TOKEN_USER_ID))).thenReturn(createTrack());
+
+        mockMvc.perform(multipart("/api/tracks/upload").file(audio).param("userId", "999")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isAccepted());
+
+        verify(trackService).upload(any(), eq(TOKEN_USER_ID));
+        verify(trackService, never()).upload(any(), eq(999L));
+    }
+
+    @Test
+    @DisplayName("토큰이 없거나 무효이면 업로드는 차단되지 않고 userId는 null이며 userId 폼 필드는 무시된다")
+    void passNullUserIdOnUploadWithoutValidToken() throws Exception {
+        stubValidToken();
+        when(trackService.upload(any(), isNull())).thenReturn(createTrack());
+
+        mockMvc.perform(multipart("/api/tracks/upload").file(audio).param("userId", "999"))
+                .andExpect(status().isAccepted());
+        mockMvc.perform(multipart("/api/tracks/upload").file(audio).param("userId", "999")
+                        .header("Authorization", "Bearer " + INVALID_TOKEN))
+                .andExpect(status().isAccepted());
+
+        verify(trackService, times(2)).upload(any(), isNull());
+        verify(trackService, never()).upload(any(), eq(999L));
+    }
+
+    @Test
+    @DisplayName("유효 토큰으로 재생하면 토큰의 userId가 전달되고 userId 쿼리 파라미터는 무시된다")
+    void passTokenUserIdOnPlay() throws Exception {
+        stubValidToken();
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getPlayInfo(eq(trackId), eq(TOKEN_USER_ID))).thenReturn(createPlayResponse(trackId));
+
+        mockMvc.perform(get("/api/tracks/{trackId}/play", trackId).param("userId", "999")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk());
+
+        verify(trackService).getPlayInfo(trackId, TOKEN_USER_ID);
+        verify(trackService, never()).getPlayInfo(trackId, 999L);
+    }
+
+    @Test
+    @DisplayName("토큰이 없거나 무효이면 재생은 차단되지 않고 userId는 null이며 userId 쿼리 파라미터는 무시된다")
+    void passNullUserIdOnPlayWithoutValidToken() throws Exception {
+        stubValidToken();
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getPlayInfo(eq(trackId), isNull())).thenReturn(createPlayResponse(trackId));
+
+        mockMvc.perform(get("/api/tracks/{trackId}/play", trackId).param("userId", "999"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/tracks/{trackId}/play", trackId).param("userId", "999")
+                        .header("Authorization", "Bearer " + INVALID_TOKEN))
+                .andExpect(status().isOk());
+
+        verify(trackService, times(2)).getPlayInfo(eq(trackId), isNull());
+        verify(trackService, never()).getPlayInfo(trackId, 999L);
+    }
+
+    @Test
+    @DisplayName("유효 토큰으로 다운로드하면 토큰의 userId가 전달되고 userId 쿼리 파라미터는 무시된다")
+    void passTokenUserIdOnDownload() throws Exception {
+        stubValidToken();
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getDownloadInfo(eq(trackId), eq(TOKEN_USER_ID))).thenReturn(createDownloadInfo());
+
+        mockMvc.perform(get("/api/tracks/{trackId}/download", trackId).param("userId", "999")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk());
+
+        verify(trackService).getDownloadInfo(trackId, TOKEN_USER_ID);
+        verify(trackService, never()).getDownloadInfo(trackId, 999L);
+    }
+
+    @Test
+    @DisplayName("토큰이 없거나 무효이면 다운로드는 차단되지 않고 userId는 null이며 userId 쿼리 파라미터는 무시된다")
+    void passNullUserIdOnDownloadWithoutValidToken() throws Exception {
+        stubValidToken();
+        UUID trackId = UUID.randomUUID();
+        when(trackService.getDownloadInfo(eq(trackId), isNull())).thenReturn(createDownloadInfo());
+
+        mockMvc.perform(get("/api/tracks/{trackId}/download", trackId).param("userId", "999"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/tracks/{trackId}/download", trackId).param("userId", "999")
+                        .header("Authorization", "Bearer " + INVALID_TOKEN))
+                .andExpect(status().isOk());
+
+        verify(trackService, times(2)).getDownloadInfo(eq(trackId), isNull());
+        verify(trackService, never()).getDownloadInfo(trackId, 999L);
     }
 
     @Test

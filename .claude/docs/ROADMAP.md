@@ -510,15 +510,19 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - **동작 메모(기록):** Spring `CorsConfiguration`의 오리진 비교는 끝 슬래시 제거와 대소문자 무시로 일치하므로 요청 `Origin`의 대소문자·끝 슬래시 변형도 허용된다(호스트·스킴은 대소문자를 구분하지 않고 브라우저가 보내는 `Origin`은 항상 소문자·끝 슬래시 없음이라 우회 경로가 아니며, 응답 `Allow-Origin`은 요청 값을 그대로 돌려준다). 공백만 있는 항목은 `CorsProperties`가 이미 제거하므로 CORS 비활성이 된다(안전한 기본값).
   - **T7 이관(기록):** Nginx 뒤 **동일 오리진 요청의 `Origin` 헤더 판정**은 Nginx의 `Host`/`X-Forwarded-*` 전달 설정에 영향을 받을 수 있다. `allowed-origins`가 비어 있지 않은 분리 배포 구성에서만 문제이므로 T7 통합 단계에서 확인한다.
 
-### [ ] T6-7 인증 사용자 연결 (업로더·이력)
+### [x] T6-7 인증 사용자 연결 (업로더·이력)
 - **목표:** 인증된 사용자를 업로드 `uploader`와 재생·다운로드 이력 `user`에 연결한다.
 - **선행:** T6-2, T3-4, T5-4
 - **완료 조건:**
-  - [ ] 컨트롤러 테스트: 토큰 있음 → 서비스에 userId 전달, 없음 → null 전달
-  - [ ] `TrackServiceTest`: userId가 있을 때 `uploader` 설정, 없을 때 null
-  - [ ] 존재하지 않는 userId 토큰이어도 업로드가 실패하지 않음(익명 처리)
-  - [ ] `./gradlew test` 통과
+  - [x] 컨트롤러 테스트: 토큰 있음 → 서비스에 userId 전달, 없음 → null 전달
+  - [x] `TrackServiceTest`: userId가 있을 때 `uploader` 설정, 없을 때 null (T3-2의 `uploadSetsUploaderWhenUserExists`·`uploadSavesAnonymousWhenUserIdNull`·`uploadSavesAnonymousWhenUserNotFound`로 충족)
+  - [x] 존재하지 않는 userId 토큰이어도 업로드가 실패하지 않음(익명 처리)
+  - [x] `./gradlew test` 통과
 - **주의:** [계획] 컨트롤러에서 Principal→userId 변환을 한 곳(예: argument resolver 또는 헬퍼)으로 모아 중복 방지
+  - **구현(기록):** 업로드·재생·다운로드 3개 메서드(호출부는 5곳이 아니라 3곳)에 `@AuthenticationPrincipal AuthenticatedUser user` 파라미터를 추가하고 private 헬퍼 `resolveUserId(user)`(`user == null ? null : user.userId()`) 한 곳으로 모았다. 익명 요청의 principal은 문자열 `"anonymousUser"`라 타입 불일치로 `null`이 주입된다. `@AuthenticationPrincipal(expression=...)`은 익명 principal에서 SpEL 접근이 실패할 위험이 있어 채택하지 않았다. Service는 변경이 없다. 요청 파라미터·폼 필드로 `userId`를 보내도 무시되며(`userId=999` 업로드 multipart 필드, 재생·다운로드 쿼리 파라미터 모두 컨트롤러 테스트로 고정) JWT 필터가 검증한 principal만 신뢰한다. 무효·위조 토큰은 차단되지 않고 익명 처리되어 PRD MVP `permitAll`과 일치한다.
+  - **HTTP 통합 확인(기록, `TrackAuthIntegrationTest`):** 실제 보안 필터 체인과 실제 `JwtTokenProvider`로 발급한 토큰으로 확인했다 — 유효 토큰 + 저장된 회원 업로드는 202에 `uploader.userId` 일치, 토큰 없음은 202에 `uploader` null, 유효 토큰 + 존재하지 않는 `userId`는 202에 `uploader` null(익명 처리), 서명을 위조한 토큰 업로드도 202에 `uploader` null, 유효 토큰 재생은 `STREAM` 이력에 `user` 연결, 위조 토큰 재생은 200에 이력의 `user` null. 이는 T3-2 이관 항목(detached `User`를 `Track.uploader`로 저장하는 실제 DB 동작의 HTTP 경로 확인)도 마무리한다. `@AutoConfigureMockMvc`로 통합 테스트 컨텍스트가 하나 늘었다.
+
+**Phase 6(인증) 완료.** T6-1~T6-7 모두 구현·검증되었다.
 
 ---
 
