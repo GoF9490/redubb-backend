@@ -1,3 +1,10 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+# 테스트 샘플 바이너리는 줄바꿈 변환 없이 그대로 보존
+src/test/resources/samples/*.mp3 binary
+src/test/resources/samples/*.wav binary
+src/test/resources/samples/*.flac binary
+src/test/resources/samples/*.jpg binary
+src/test/resources/samples/*.png binary

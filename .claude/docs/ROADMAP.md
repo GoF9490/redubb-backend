@@ -81,13 +81,13 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [계획] `/api/auth/me`만 인증 필수로 두는 확정은 T6-2에서 한다(여기서는 골격만)
   - [검토] OAuth2 Client 스타터가 클라이언트 등록 없이 기동 실패하지 않는지
 
-### [ ] T0-6 테스트 기반(샘플 파일·헬퍼)
+### [x] T0-6 테스트 기반(샘플 파일·헬퍼)
 - **목표:** `src/test/resources/samples/`에 초소형 샘플(ID3+커버 1초 MP3, 무태그 1초 WAV, 1초 FLAC, 확장자만 `.mp3`인 텍스트 파일, jpg, png)을 만들고 로딩 헬퍼를 둔다. 10MB 초과 이미지는 테스트에서 바이트 배열로 생성한다.
 - **선행:** 없음
 - **완료 조건:**
-  - [ ] 샘플 로딩 테스트(`SampleFixtureTest`): 파일 존재·크기 > 0
-  - [ ] 샘플 생성 명령(ffmpeg 등)을 `src/test/resources/samples/README.md`에 기록
-  - [ ] 샘플 합계 크기 1MB 이하
+  - [x] 샘플 로딩 테스트(`SampleFixtureTest`): 파일 존재·크기 > 0
+  - [x] 샘플 생성 명령(ffmpeg 등)을 `src/test/resources/samples/README.md`에 기록
+  - [x] 샘플 합계 크기 1MB 이하
 - **주의:**
   - [탐색] 로컬에 ffmpeg가 없으면 생성 불가 → 사용자에게 설치/대체 방법 문의
   - [검토] 저작권 이슈가 없는 합성음(sine)만 사용
