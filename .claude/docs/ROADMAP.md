@@ -132,15 +132,16 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
     - **결정(기록):** MVP는 사전 조회 없이 `DataIntegrityViolationException`을 그대로 전파한다. 동시 최초 로그인 경합(`uk_users_provider_id` 위반)도 미처리이며 재로그인 시 정상 동작한다. 기존 회원의 `picture`가 null이면 null로 덮어쓴다(PRD "최신값 갱신"). 메서드명은 `upsertUser`이므로 T6-4는 `upsertUser`를 호출한다. 시간은 `config/ClockConfig`의 `Clock` 빈을 주입한다.
   - [구현] 트랜잭션 경계(`@Transactional`)
 
-### [ ] T1-4 `PlaybackLogService`
+### [x] T1-4 `PlaybackLogService`
 - **목표:** STREAM/DOWNLOAD 이력 기록. `user`는 nullable, 저장 실패는 예외를 삼키고 로그만 남긴다(PRD-05 §7.1.3).
 - **선행:** T1-2
 - **완료 조건:**
-  - [ ] `PlaybackLogServiceTest`: 로그인 사용자/비로그인(`user=null`) 각각 저장 호출 검증
-  - [ ] 리포지토리가 예외를 던져도 메서드가 예외를 전파하지 않음
-  - [ ] `./gradlew test` 통과
+  - [x] `PlaybackLogServiceTest`: 로그인 사용자/비로그인(`user=null`) 각각 저장 호출 검증
+  - [x] 리포지토리가 예외를 던져도 메서드가 예외를 전파하지 않음
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [계획] 호출자 트랜잭션이 롤백 전용으로 마킹되지 않도록 `REQUIRES_NEW` 또는 트랜잭션 밖 호출 여부 결정
+    - **결정(기록):** `TransactionTemplate`(REQUIRES_NEW)을 서비스 내부에서 사용한다. 시그니처는 `recordLog(Track, Long userId, ActionType)`. `REQUIRES_NEW`의 커넥션 이중 사용, 존재하지 않는 userId의 FK 위반 시 이력 유실은 MVP 한계. Mockito로는 트랜잭션 동작을 검증할 수 없으므로 T5-3/T5-4 [검토]에서 `@SpringBootTest`(H2)로 확인한다.
   - [검토] 예외를 삼키되 `log.warn`에 trackId 포함
 
 ---
@@ -374,6 +375,7 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [ ] 컨트롤러 `@WebMvcTest`: `200`/`409`/`404`
   - [ ] `./gradlew test` 통과
 - **주의:** [검토] 이력 기록 실패가 응답을 막지 않는지(T1-4와 연동)
+  - [검토] `PlaybackLogService`가 `TransactionTemplate`(REQUIRES_NEW)로 동작하므로, 호출자(`TrackService`)가 `readOnly` 트랜잭션이어도 이력이 저장되고 저장 실패 시 `UnexpectedRollbackException`이 나지 않는지 `@SpringBootTest`(H2) 통합 테스트로 확인한다(Mockito로는 검증 불가).
 
 ### [ ] T5-4 원본 다운로드 지시
 - **목표:** `getDownloadInfo`와 `GET /api/tracks/{id}/download` — presigned URL을 `X-Accel-Redirect`로 변환하고 RFC 5987 `Content-Disposition`을 구성한다.
@@ -389,6 +391,7 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [탐색] PRD-05 §7.1.2의 경로 분리 규칙(`/{bucket}/` 이후 경로 + 원본 쿼리)
   - [구현] `Content-Disposition`의 따옴표·줄바꿈·특수문자(헤더 인젝션) 이스케이프
   - [검토] Nginx가 헤더를 유지하는지는 통합 테스트 소관(PRD.md §7.1) — 본 태스크 범위 밖
+  - [검토] `DOWNLOAD` 이력도 T5-3과 동일하게 `PlaybackLogService`(REQUIRES_NEW) 경유이므로, 호출자 트랜잭션 영향 없이 저장되는지 통합 테스트(H2)로 함께 확인한다.
 
 ---
 
