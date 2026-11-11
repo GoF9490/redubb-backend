@@ -17,7 +17,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import com.streaming.music.config.properties.AudioProperties;
 import com.streaming.music.exception.InvalidArtworkException;
 import com.streaming.music.exception.InvalidAudioFormatException;
+import com.streaming.music.service.AudioMetadataValidator.AudioMetadata;
 import com.streaming.music.service.AudioMetadataValidator.AudioValidationResult;
+import com.streaming.music.service.AudioMetadataValidator.MetadataOverrides;
 import com.streaming.music.support.SampleFixtures;
 
 @DisplayName("AudioMetadataValidator Tika 검증")
@@ -172,5 +174,105 @@ class AudioMetadataValidatorTest {
                 .isInstanceOf(InvalidArtworkException.class);
         assertThatThrownBy(() -> validator.detectArtworkMimeType(null))
                 .isInstanceOf(InvalidArtworkException.class);
+    }
+
+    private static final MetadataOverrides NO_OVERRIDES = new MetadataOverrides(null, null, null);
+
+    private AudioMetadata extractSample(String fileName, String originalFilename, MetadataOverrides overrides) {
+        Path tempFile = SampleFixtures.copySampleToTempFile(fileName);
+        try {
+            return validator.extractMetadata(tempFile, originalFilename, overrides);
+        } finally {
+            SampleFixtures.deleteQuietly(tempFile);
+        }
+    }
+
+    @Test
+    @DisplayName("ID3 MP3에서 제목·가수·앨범·재생 시간·커버 바이트를 추출한다")
+    void extractMetadataFromTaggedMp3() {
+        AudioMetadata metadata = extractSample(SampleFixtures.TAGGED_MP3, "song.mp3", NO_OVERRIDES);
+        assertThat(metadata.title()).isEqualTo("Sample Title");
+        assertThat(metadata.artist()).isEqualTo("Sample Artist");
+        assertThat(metadata.album()).isEqualTo("Sample Album");
+        assertThat(metadata.durationSeconds()).isGreaterThanOrEqualTo(1);
+        assertThat(metadata.embeddedArtwork()).isNotEmpty();
+        assertThat(validator.detectArtworkMimeType(metadata.embeddedArtwork())).isEqualTo("image/jpeg");
+    }
+
+    @Test
+    @DisplayName("무태그 WAV는 제목=파일명(확장자 제외), 가수=Unknown Artist, 앨범=null로 보정한다")
+    void fallbackForUntaggedWav() {
+        AudioMetadata metadata = extractSample(SampleFixtures.UNTAGGED_WAV, "My Song.final.wav", NO_OVERRIDES);
+        assertThat(metadata.title()).isEqualTo("My Song.final");
+        assertThat(metadata.artist()).isEqualTo("Unknown Artist");
+        assertThat(metadata.album()).isNull();
+        assertThat(metadata.embeddedArtwork()).isNull();
+        assertThat(metadata.durationSeconds()).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("request 값이 태그보다 우선한다")
+    void overridesPreferRequestValues() {
+        AudioMetadata metadata = extractSample(SampleFixtures.TAGGED_MP3, "song.mp3",
+                new MetadataOverrides("My Title", "My Artist", "My Album"));
+        assertThat(metadata.title()).isEqualTo("My Title");
+        assertThat(metadata.artist()).isEqualTo("My Artist");
+        assertThat(metadata.album()).isEqualTo("My Album");
+    }
+
+    @Test
+    @DisplayName("공백뿐인 request 값은 비어 있음으로 취급해 태그로 대체한다")
+    void blankOverridesFallBackToTag() {
+        AudioMetadata metadata = extractSample(SampleFixtures.TAGGED_MP3, "song.mp3",
+                new MetadataOverrides("   ", "", "\t"));
+        assertThat(metadata.title()).isEqualTo("Sample Title");
+        assertThat(metadata.artist()).isEqualTo("Sample Artist");
+        assertThat(metadata.album()).isEqualTo("Sample Album");
+    }
+
+    @Test
+    @DisplayName("파일명·태그·request가 모두 없으면 제목은 Unknown Title이다")
+    void fallbackToUnknownTitle() {
+        assertThat(extractSample(SampleFixtures.UNTAGGED_WAV, null, null).title()).isEqualTo("Unknown Title");
+        assertThat(extractSample(SampleFixtures.UNTAGGED_WAV, "  ", NO_OVERRIDES).title())
+                .isEqualTo("Unknown Title");
+    }
+
+    @Test
+    @DisplayName("FLAC와 M4A도 읽히며 태그가 없으면 Fallback이 적용된다")
+    void extractMetadataFromFlacAndM4a() {
+        for (String sample : new String[]{SampleFixtures.FLAC, SampleFixtures.M4A}) {
+            AudioMetadata metadata = extractSample(sample, "track.bin", NO_OVERRIDES);
+            assertThat(metadata.title()).as(sample).isEqualTo("track");
+            assertThat(metadata.artist()).as(sample).isEqualTo("Unknown Artist");
+            assertThat(metadata.durationSeconds()).as(sample).isGreaterThanOrEqualTo(1);
+        }
+    }
+
+    @Test
+    @DisplayName("헤더 파싱에 실패하면 원인을 보존한 InvalidAudioFormatException이 발생한다")
+    void rejectBrokenAudioHeader() {
+        Path tempFile = SampleFixtures.copySampleToTempFile(SampleFixtures.FAKE_AUDIO_MP3);
+        try {
+            assertThatThrownBy(() -> validator.extractMetadata(tempFile, "fake.mp3", NO_OVERRIDES))
+                    .isInstanceOf(InvalidAudioFormatException.class)
+                    .hasCauseInstanceOf(Exception.class);
+        } finally {
+            SampleFixtures.deleteQuietly(tempFile);
+        }
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 파일은 InvalidAudioFormatException이 발생한다")
+    void rejectMissingFileOnExtract() {
+        assertThatThrownBy(() -> validator.extractMetadata(tempDir.resolve("none.mp3"), "none.mp3", NO_OVERRIDES))
+                .isInstanceOf(InvalidAudioFormatException.class);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0, 1", "1, 1", "3, 3", "-1, 1"})
+    @DisplayName("재생 시간 1초 미만은 1초로 보정한다")
+    void normalizeDuration(int trackLength, int expected) {
+        assertThat(AudioMetadataValidator.normalizeDuration(trackLength)).isEqualTo(expected);
     }
 }

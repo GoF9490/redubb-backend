@@ -393,10 +393,11 @@ com.streaming.music
    * **텍스트 태그 우선순위 및 Fallback 보정 (옵션 3-가):**
      * **제목(`title`):** ① 업로드 모달에서 사용자가 확인·수정한 `request.title` ➔ ② ID3 태그 타이틀(`FieldKey.TITLE`) ➔ ③ 둘 다 비어 있으면 **원본 파일명(확장자 제외)**으로 자동 보정합니다.
      * **가수(`artist`):** ① 업로드 모달에서 사용자가 확인·수정한 `request.artist` ➔ ② ID3 태그 아티스트(`FieldKey.ARTIST`) ➔ ③ 둘 다 비어 있으면 **`"Unknown Artist"`**로 자동 보정합니다.
+     * **제목 최후 보정:** 제목은 request ➔ 태그 ➔ 원본 파일명(확장자 제외) 순이며, 원본 파일명까지 비어 있는 극단적인 경우에는 DB `NOT NULL` 제약을 지키기 위해 **`"Unknown Title"`**로 보정합니다. 공백 문자열은 모두 "비어 있음"으로 취급합니다.
      * **앨범(`album`):** ① `request.album` ➔ ② ID3 태그 앨범(`FieldKey.ALBUM`) ➔ ③ 없으면 `null`로 저장합니다.
    * **앨범 커버 이미지 결정 및 분리 저장 (옵션 3-B + 커스텀 이미지 지원):**
      * **1순위 (사용자 직접 첨부 이미지):** 업로드 모달에서 사용자가 앨범자켓을 직접 변경하여 `artworkFile`(`MultipartFile`)을 함께 전송한 경우, **Tika로 실제 MIME이 `image/jpeg` 또는 `image/png`인지, 크기가 `app.audio.max-artwork-size-bytes`(10MB) 이하인지 검증**한 뒤(위반 시 `InvalidArtworkException`, `400`) RustFS `audio-storage/artwork/{track_uuid}.jpg`에 저장합니다.
-     * **2순위 (음원 내장 이미지):** `artworkFile`이 없고 음원 내부에 `tag.getFirstArtwork()`가 존재하면 내장 이미지 바이트 배열(`getBinaryData()`)을 추출하여 RustFS `audio-storage/artwork/{track_uuid}.jpg`에 저장합니다.
+     * **2순위 (음원 내장 이미지):** `artworkFile`이 없고 음원 내부에 `tag.getFirstArtwork()`가 존재하면 내장 이미지 바이트 배열(`getBinaryData()`)을 추출하여 RustFS `audio-storage/artwork/{track_uuid}.jpg`에 저장합니다. (내장 이미지는 사용자 입력이 아니므로 Tika 검증에서 JPEG/PNG가 아니거나 손상된 것으로 판정되면 `InvalidArtworkException`으로 업로드를 거부하지 않고 **내장 커버를 무시(`null`)한 채 업로드를 계속**합니다.)
      * **3순위:** 둘 다 없는 경우 `artworkS3Key = null`로 저장합니다.
      * **키·Content-Type 규칙:** 클라이언트 URL 규칙(`/artwork/{track_uuid}.jpg`)을 고정하기 위해 객체 키 확장자는 항상 `.jpg`로 두되, `Content-Type`은 **실제 감지된 MIME(`image/jpeg` / `image/png`)**으로 지정하여 브라우저가 올바르게 렌더링하도록 합니다(PRD-06 §2.1).
 4. **원본 음원 RustFS 업로드 및 DB `PENDING` 저장:**

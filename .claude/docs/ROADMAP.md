@@ -198,18 +198,19 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
     - **확인 결과(기록):** MP3=`audio/mpeg`, WAV=`audio/vnd.wave`, FLAC=`audio/x-flac`, M4A=`audio/mp4` — 모두 PRD 허용 목록 안이며 변형은 없었다. M4A 실파일 `sample.m4a`를 추가했다(T2-5 JAudioTagger 검증에도 사용).
   - [검토] 검증 실패 시 임시 파일 삭제는 호출자(`TrackService`)의 finally 책임임을 명확히
 
-### [ ] T2-5 `AudioMetadataValidator` ② 태그·커버 추출
+### [x] T2-5 `AudioMetadataValidator` ② 태그·커버 추출
 - **목표:** JAudioTagger로 재생 시간(1초 미만 → 1초 보정), 제목/가수/앨범 Fallback, 내장 앨범 커버 추출.
 - **선행:** T2-4
 - **완료 조건:**
-  - [ ] ID3 MP3에서 제목·가수·재생 시간·커버 바이트 추출
-  - [ ] 무태그 WAV: `title=파일명(확장자 제외)`, `artist="Unknown Artist"`, `album=null`
-  - [ ] request 값이 태그보다 우선
-  - [ ] 헤더 파싱 실패 → `InvalidAudioFormatException`
-  - [ ] 1초 미만 샘플은 `durationSeconds=1`
-  - [ ] `./gradlew test` 통과
+  - [x] ID3 MP3에서 제목·가수·재생 시간·커버 바이트 추출
+  - [x] 무태그 WAV: `title=파일명(확장자 제외)`, `artist="Unknown Artist"`, `album=null`
+  - [x] request 값이 태그보다 우선
+  - [x] 헤더 파싱 실패 → `InvalidAudioFormatException`
+  - [x] 1초 미만 샘플은 `durationSeconds=1` (실파일 샘플이 모두 1초라 `normalizeDuration` 단위 테스트로 검증)
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [탐색] JAudioTagger 3.0.1이 `File` 경로·확장자에 의존 → 임시 파일 확장자 규칙 확인
+    - **확인 결과(기록):** `AudioFileIO.read(File)`은 확장자로 리더를 선택한다. `.bin`은 `CannotReadException`, 틀린 확장자는 `InvalidAudioFrameException`. 임시 파일은 반드시 Tika 감지 확장자(`AudioValidationResult.extension()`)로 만들어야 한다(T3-2 호출자 계약). 무태그 WAV/FLAC/M4A도 `getTag()`는 null이 아니었다(빈 태그 객체). 태그가 있는 M4A의 태그·커버 추출은 샘플이 없어 미검증(T7-3 스모크에서 확인). 내장 커버가 JPEG/PNG가 아니면 T3-2가 `InvalidArtworkException`을 잡아 커버를 null로 무시한다.
   - [구현] JAudioTagger 로거 소음 억제(테스트/운영 로그 레벨)
   - [검토] 공백 문자열을 "비어 있음"으로 취급
 
