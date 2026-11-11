@@ -288,19 +288,21 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 
 ## Phase 4 — 비동기 HLS 변환
 
-### [ ] T4-1 `transcodeExecutor` 및 큐 포화 처리
+### [x] T4-1 `transcodeExecutor` 및 큐 포화 처리
 - **목표:** `AsyncConfig`에 `transcodeExecutor`(core 1, max 2, queue 50)를 등록하고, 큐 포화(`TaskRejectedException`) 시 트랙을 `FAILED(TRANSCODE_QUEUE_FULL)`로 기록한다.
 - **선행:** T3-1
 - **완료 조건:**
-  - [ ] 설정 테스트: executor의 core/max/queue 값 검증
-  - [ ] 거부 발생 시 `FAILED`와 `errorMessage="TRANSCODE_QUEUE_FULL"` 갱신 검증(단위 테스트)
-  - [ ] `./gradlew test` 통과
+  - [x] 설정 테스트: executor의 core/max/queue 값 검증
+  - [x] 거부 발생 시 `FAILED`와 `errorMessage="TRANSCODE_QUEUE_FULL"` 갱신 검증(단위 테스트)
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [계획] AFTER_COMMIT 시점의 `@Async` 거부 예외는 호출부로 전파되지 않을 수 있다 → 예외를 어디서 잡을지(커스텀 `RejectedExecutionHandler` 등) 먼저 설계
+    - **결정·실측(기록):** Spring 7.0.10에서 `AFTER_COMMIT` 리스너가 던진 예외는 `afterCompletion`에서 로그로만 남고 `TransactionTemplate.execute`로 전파되지 않는다(통합 테스트 대조군으로 확인). 거부된 `@Async` 작업에는 `trackId`가 없어 `RejectedExecutionHandler`/`AsyncUncaughtExceptionHandler`로는 `FAILED` 기록이 불가능하다. 그래서 **리스너와 `@Async`를 분리**했다: 동기 `TranscodeEventRelay`(`@TransactionalEventListener(AFTER_COMMIT)`)가 `TranscodeProcessor.process(dto)`(`@Async("transcodeExecutor")`)를 호출하고 `TaskRejectedException`을 잡아 `TranscodeRejectionHandler`(`REQUIRES_NEW`)로 `FAILED(TRANSCODE_QUEUE_FULL)` 기록(실제 H2 반영 확인). `TranscodeProcessor` 구현체가 아직 없으므로 릴레이는 `ObjectProvider`로 지연 주입하고 부재 시 경고 로그만 남긴다.
   - [검토] `@EnableAsync` 위치와 `AsyncUncaughtExceptionHandler`
+    - **결정(기록):** `@EnableAsync`는 `AsyncConfig`에 둔다. `AsyncConfigurer`는 구현하지 않고 기본 `SimpleAsyncUncaughtExceptionHandler`를 쓴다(작업 내부 예외는 T4-2/T4-3이 직접 `FAILED` 처리). 종료 시 실행 중 작업은 인터럽트(PRD 무지정, 기본값 유지). 참고: `ThreadPoolExecutor`는 큐(50)가 가득 차야 두 번째 스레드(max 2)를 만들므로 평소 동시 변환은 1건이다.
 
 ### [ ] T4-2 `HlsTranscodeService` 성공 경로
-- **목표:** 이벤트 수신(`@Async("transcodeExecutor") @TransactionalEventListener(AFTER_COMMIT)`) → `PROCESSING` → 원본 다운로드 → FFmpeg → 재귀 업로드 → `READY`(`hls/{uuid}/index.m3u8`).
+- **목표:** `TranscodeProcessor`를 구현하고 `@Async("transcodeExecutor")`로 동작하는 `HlsTranscodeService.process(dto)`가 `PROCESSING` → 원본 다운로드 → FFmpeg → 재귀 업로드 → `READY`(`hls/{uuid}/index.m3u8`)로 처리한다. (이벤트 수신 `@TransactionalEventListener(AFTER_COMMIT)`는 T4-1의 동기 `TranscodeEventRelay`가 담당하며 `process`를 호출한다. 구현체가 생기면 릴레이의 `ObjectProvider` 지연 주입을 필수 주입으로 전환한다.)
 - **선행:** T2-3, T2-6, T4-1
 - **완료 조건:**
   - [ ] `HlsTranscodeServiceTest` 성공: 상태 전이 `PROCESSING → READY`, `hlsPlaylistKey="hls/{uuid}/index.m3u8"`

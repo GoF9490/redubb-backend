@@ -413,8 +413,9 @@ com.streaming.music
 1. **전용 스레드 풀 격리 (`AsyncConfig`):**
    * `ThreadPoolTaskExecutor`를 `transcodeExecutor` 빈으로 등록하며, FFmpeg가 백엔드 CPU를 독점하지 못하도록 `corePoolSize = 1`, `maxPoolSize = 2`, `queueCapacity = 50`으로 동시 변환 수를 엄격히 제한합니다.
    * **큐 포화 시 처리:** 큐가 가득 차 `TaskRejectedException`이 발생하면 해당 트랙을 `FAILED`(`error_message = "TRANSCODE_QUEUE_FULL"`)로 기록합니다. 업로드 응답(`202`)은 이미 반환되었으므로 클라이언트는 상태 조회로 실패를 확인합니다.
+   * **거부 예외 처리 위치(실측 반영):** `AFTER_COMMIT` 리스너에서 던져진 예외는 `afterCompletion` 단계에서 로그로만 남고 커밋 호출자에게 전파되지 않으며(Spring 7.0.10 실측), 거부된 `@Async` 작업에는 `trackId`가 없어 `FAILED`로 바꿀 수 없습니다. 따라서 `@Async`를 리스너 메서드에 직접 붙이지 않고, `trackId`를 쥔 **동기 `TranscodeEventRelay`**(`@TransactionalEventListener(AFTER_COMMIT)`)가 `TranscodeProcessor.process(dto)`(`@Async("transcodeExecutor")`, 구현체 `HlsTranscodeService`)를 호출하며 `TaskRejectedException`을 잡아 `TranscodeRejectionHandler`(`REQUIRES_NEW`)로 `FAILED` 기록합니다.
 2. **커밋 이후 수신 및 상태 전환:**
-   * 수신부는 **`@Async("transcodeExecutor") @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`**로 선언합니다. 일반 `@EventListener`는 업로드 트랜잭션 커밋 전에 실행될 수 있어 비동기 스레드가 아직 저장되지 않은 Track을 조회하지 못하는 경합이 발생하므로 사용하지 않습니다.
+   * 수신부는 커밋 직후 호출되는 동기 **`@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`**(`TranscodeEventRelay`)이며, 실제 변환은 여기서 호출하는 **`@Async("transcodeExecutor")`** 메서드(`HlsTranscodeService.process`)가 수행합니다(분리 이유는 위 "거부 예외 처리 위치" 참조). 일반 `@EventListener`는 업로드 트랜잭션 커밋 전에 실행될 수 있어 비동기 스레드가 아직 저장되지 않은 Track을 조회하지 못하는 경합이 발생하므로 사용하지 않습니다.
    * `TranscodeEventDto`를 수신하면 DB 상태를 `PROCESSING`으로 변경하고, RustFS에서 `originalS3Key` 파일을 `${app.audio.work-dir}/{track_uuid}/input.{ext}`로 내려받습니다.
 3. **FFmpeg 6초 단위 단일 음질(AAC 192kbps) 청크 분할 (`ProcessBuilder`):**
    * 출력 폴더 `${app.audio.work-dir}/{track_uuid}/hls/`를 생성하고 아래 표준 FFmpeg 명령어를 실행합니다.
