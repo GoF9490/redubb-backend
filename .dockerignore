@@ -1,0 +1,16 @@
+# 빌드 컨텍스트 제외 (시크릿·불필요 파일 차단)
+.git
+.gitignore
+.gitattributes
+.gradle
+build/
+bin/
+out/
+.idea
+.vscode
+.claude
+.env
+.env.*
+HELP.md
+*.md
+skills-lock.json

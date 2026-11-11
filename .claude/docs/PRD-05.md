@@ -306,6 +306,9 @@ spring:
 | `FFMPEG_TIMEOUT_MINUTES` | FFmpeg 변환 프로세스 최대 실행 시간(분) | 일반 | `3` |
 | `MEDIA_PUBLIC_BASE_URL` | `streamUrl`/`artworkUrl` 응답 접두어 (빈 값이면 상대경로) | 일반 | (빈 값) / 분리 배포 시 `https://media.example.com` |
 | `CORS_ALLOWED_ORIGINS` | 백엔드 API CORS 허용 오리진 (쉼표 구분, 빈 값이면 CORS 비활성) | 일반 | (빈 값) / 분리 배포 시 `https://web.example.com` |
+| `MAX_UPLOAD_SIZE` / `MAX_REQUEST_SIZE` | 멀티파트 단일 파일·요청 최대 크기 (선택, 기본값 사용 시 생략) | 일반 | `100MB` / `110MB` |
+| `JWT_EXPIRATION_MS` | Access Token 만료 시간(ms) (선택) | 일반 | `86400000` |
+| `AUDIO_WORK_DIR` / `FFMPEG_PATH` | 변환 임시 작업 디렉터리 / FFmpeg 실행 파일 경로 (선택) | 일반 | `/tmp/audio-work` / `/usr/bin/ffmpeg` |
 
 ## 5. 레이어드 아키텍처 (Layered Architecture) 및 패키지 구조
 
