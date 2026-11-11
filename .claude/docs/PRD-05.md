@@ -316,7 +316,7 @@ com.streaming.music
 ├── config/                  # 설정 클래스 (SecurityConfig, AsyncConfig, StorageConfig, CorsConfig)
 │   └── properties/          # yaml 바인딩 (@ConfigurationProperties: StorageProperties, AudioProperties, JwtProperties, MediaProperties, CorsProperties)
 ├── security/                # Google OAuth2 & JWT 무상태 인증 모듈
-│   ├── CustomOAuth2UserService.java                       # 구글 최소 정보(sub, email, picture) 추출 및 자동 회원 등록(Upsert)
+│   ├── CustomOidcUserService.java                         # 구글 최소 정보(sub, email, picture) 추출 및 자동 회원 등록(Upsert). scope에 openid가 있어 OIDC 경로(OidcUserService)를 위임·확장 (+ AuthenticatedOidcUser: userId·role을 담은 principal)
 │   ├── HttpCookieOAuth2AuthorizationRequestRepository.java # OAuth2 인가 요청(state)·redirect_uri를 HttpSession 대신 쿠키에 저장 (멀티노드 무상태)
 │   ├── OAuth2AuthenticationSuccessHandler.java            # 로그인 성공 시 JWT 발급 및 화이트리스트 검증된 redirect_uri로 리다이렉트
 │   ├── OAuth2AuthenticationFailureHandler.java            # 로그인 실패 시 redirect_uri?error={code}로 리다이렉트
@@ -363,7 +363,8 @@ com.streaming.music
 
 1. **개인정보 최소 수집 원칙 (`scope: openid, email, profile`):**
    * 구글로부터 전달받는 속성 중 **고유 식별자(`sub`)**, **이메일(`email`)**, 그리고 웹페이지(`PRD-02`) 우측 상단 버튼 자리에 표시할 **구글 프로필 이미지 URL(`picture`)** 딱 3가지만 추출하며, 실명, 전화번호, 생년월일 등 불필요한 개인정보는 저장하지 않습니다.
-2. **자동 계정 생성 및 프로필 갱신 (`CustomOAuth2UserService` & `UserService`):**
+2. **자동 계정 생성 및 프로필 갱신 (`CustomOidcUserService` & `UserService`):**
+   * Spring Security 7은 scope에 `openid`가 있으면 `userInfoEndpoint().userService(...)`로 등록한 일반 `OAuth2UserService`를 호출하지 않고 `OidcUserService`만 호출합니다(소스 확인). 따라서 `OidcUserService`에 위임하는 `CustomOidcUserService`를 **`userInfoEndpoint().oidcUserService(...)`**에 등록하며, scope(`openid, email, profile`)는 그대로 유지해 ID 토큰 서명·nonce 검증을 보존합니다. 반환 principal(`AuthenticatedOidcUser`)에는 DB의 `userId`·`role`과 최소 클레임(`sub`, `email`, `picture`)만 담고, `email_verified`가 명시적 `false`이면 거부합니다.
    * 사용자가 구글 로그인을 완료하면 `providerId(sub)` 기준으로 `users` 테이블을 조회합니다.
    * 기존 회원이면 최신 `email`, `profileImageUrl`(`picture`), `lastLoginAt`을 갱신하고, 최초 방문자이면 별도 가입 화면 없이 즉시 `User(provider = GOOGLE, providerId = sub, email = email, profileImageUrl = picture, role = ROLE_USER)` 엔티티를 자동 저장(Upsert)합니다.
 3. **멀티노드 무상태 OAuth2 인가 요청 저장 (`HttpCookieOAuth2AuthorizationRequestRepository`):**
@@ -507,7 +508,7 @@ com.streaming.music
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomOAuth2UserService customOAuth2UserService;
+    private final CustomOidcUserService customOidcUserService;
     private final HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
     private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2FailureHandler;
@@ -539,7 +540,8 @@ public class SecurityConfig {
                 // 멀티노드 무상태: 인가 요청(state)을 HttpSession 대신 쿠키에 저장 (§6.1-3)
                 .authorizationEndpoint(endpoint -> endpoint
                     .authorizationRequestRepository(cookieAuthorizationRequestRepository))
-                .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                // scope에 openid가 있으므로 일반 userService가 아닌 oidcUserService에 등록한다
+                .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
                 .successHandler(oAuth2SuccessHandler)
                 .failureHandler(oAuth2FailureHandler)
             )

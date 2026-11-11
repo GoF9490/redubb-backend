@@ -465,16 +465,19 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - **HMAC 서명 미적용 근거(기록):** 쿠키는 브라우저와 `state`를 묶는 역할이며, 서명 여부와 무관하게 공격자는 정상 흐름에서 받은 유효 쿠키를 그대로 복사할 수 있어 서명은 쿠키 심기 공격을 막지 못한다. 서명이 막는 필드 조작(`redirectUri`, `clientId`)은 Google의 등록 redirect 검증과 코드 교환 단계에서 이미 거부된다. 별도 서명 키(설정 키 추가)의 비용 대비 이득이 작아 MVP에서는 하지 않는다.
   - **구현 메모(기록):** `@Component`가 아니며 T6-5에서 `SecurityConfig`가 `new`로 만들어 `oauth2Login`에 전달하고 **같은 인스턴스를 성공·실패 핸들러에 주입**해야 한다. 핸들러는 `loadRedirectUri(request)`로 읽은 뒤 `removeAuthorizationRequestCookies(request, response)`로 두 쿠키를 지운다(`removeAuthorizationRequest`는 `oauth2_auth_request`만 삭제). `redirect_uri` 쿠키는 Base64URL로 저장(헤더 인젝션 불가, 512자 초과·없음·공백이면 값 쿠키를 만들지 않고 **잔존 쿠키 삭제 헤더를 내보내 이전 시도의 값이 180초 안에 재사용되지 않게 한다**). `Secure`는 `request.isSecure()`일 때만 붙고, 값이 3072자를 넘는 쿠키는 `null`로 처리한다.
 
-### [ ] T6-4 `CustomOAuth2UserService`
-- **목표:** Google 응답에서 `sub/email/picture`만 추출해 `UserService.upsert`를 호출한다.
+### [x] T6-4 `CustomOidcUserService` (구 `CustomOAuth2UserService`)
+- **목표:** Google 응답에서 `sub/email/picture`만 추출해 `UserService.upsertUser`를 호출한다.
 - **선행:** T1-3
 - **완료 조건:**
-  - [ ] 단위 테스트: 속성 매핑(`sub/email/picture`) 후 `UserService` 호출
-  - [ ] 필수 속성(`sub`, `email`) 누락 시 `OAuth2AuthenticationException`
-  - [ ] `./gradlew test` 통과
+  - [x] 단위 테스트: 속성 매핑(`sub/email/picture`) 후 `UserService` 호출
+  - [x] 필수 속성(`sub`, `email`) 누락 시 `OAuth2AuthenticationException`
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [탐색] scope에 `openid`가 있으면 `OidcUserService` 경로가 사용된다 → `CustomOAuth2UserService`만으로 충분한지 확인하고, 필요 시 OIDC 서비스 커스터마이징 여부를 사용자에게 문의
+    - **확인·결정(기록):** Spring Security 7.1.2 소스 확인 결과 `OAuth2LoginAuthenticationProvider`는 인가 요청 scope에 `openid`가 있으면 `null`을 반환하고 `OidcAuthorizationCodeAuthenticationProvider`가 처리하며, 이 provider는 `OAuth2UserService<OidcUserRequest, OidcUser>`(기본 `OidcUserService`)만 호출한다. 따라서 PRD §4.2의 scope(`openid, email, profile`)에서는 `userInfoEndpoint().userService(...)`로 등록한 일반 서비스가 호출되지 않아 Upsert가 실행되지 않는다. **안 A 채택:** scope를 유지하고 `OidcUserService`에 위임하는 `CustomOidcUserService`를 만들어 **T6-5에서 `userInfoEndpoint(u -> u.oidcUserService(customOidcUserService))`로 등록**한다. 안 B(`openid` 제거)는 ID 토큰 서명·nonce 검증 포기와 PRD scope 변경이 필요해 기각했다. 라이브러리 추가·기술스택 변경 없이 PRD 동작을 유지하는 같은 스택 내 확장이라 사용자 문의 없이 진행했고, **최종 보고에서 사용자에게 알린다.** PRD-05 §5·§6.1·§7.3의 클래스명·샘플 코드를 이에 맞게 정정했다.
   - [검토] 불필요한 개인정보(이름 등)를 저장하지 않는다
+    - **확인(기록):** `sub`·`email`·`picture`만 추출하고, 반환 principal(`AuthenticatedOidcUser`)의 클레임/attributes/ID 토큰에 `name`·`given_name`·`family_name`이 없음을 테스트로 확인했다. 최소 클레임으로 `OidcIdToken`을 재구성하지만, `OidcAuthorizationCodeAuthenticationProvider`가 서명·클레임·nonce 검증을 `loadUser` 호출 전에 끝내고 이후 재검증하지 않아 영향이 없음을 jar 소스로 확인했다. `email_verified`는 Boolean `false` 또는 문자열 `"false"`일 때만 거부하며 다른 타입은 예외 없이 통과한다. 예외 메시지·로그에는 속성 값·토큰이 없다.
+  - **T6-5 연동 메모(기록):** `AuthenticatedOidcUser`(`getUserId()`, `getRole()`)가 principal이므로 성공 핸들러는 `authentication.getPrincipal()`을 캐스팅해 `jwtTokenProvider.createToken(userId, role)`로 발급한다. 실제 Google 응답을 쓰는 통합 검증은 하지 않았다(위임 객체를 Mock으로 대체한 단위 테스트).
 
 ### [ ] T6-5 성공·실패 핸들러
 - **목표:** `OAuth2AuthenticationSuccessHandler`(화이트리스트 완전 일치 시 `?token=`, 불일치 시 `default?error=invalid_redirect_uri`, 쿠키 삭제)와 `OAuth2AuthenticationFailureHandler`(`?error=`).
