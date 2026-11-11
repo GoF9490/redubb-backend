@@ -48,13 +48,13 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [구현] 기존 `application.yaml`의 H2 설정(`testdb`)을 `streaming_db`로 교체
   - [검토] `.env` 파일이 `.gitignore`에 포함되는지
 
-### [ ] T0-3 `@ConfigurationProperties` 바인딩 5종
+### [x] T0-3 `@ConfigurationProperties` 바인딩 5종
 - **목표:** `JwtProperties`, `StorageProperties`, `AudioProperties`, `MediaProperties`, `CorsProperties`를 `config/properties`에 구현한다.
 - **선행:** T0-2
 - **완료 조건:**
-  - [ ] `ApplicationContextRunner` 테스트: 쉼표 구분 리스트(`allowed-redirect-uris`)가 `List<String>`으로 바인딩
-  - [ ] 빈 값 기본값(`public-base-url`, `allowed-origins`)이 `""`/빈 리스트로 바인딩
-  - [ ] 기본값(`presigned-expiry-seconds=60`, `ffmpeg-timeout-minutes=3`) 검증
+  - [x] `ApplicationContextRunner` 테스트: 쉼표 구분 리스트(`allowed-redirect-uris`)가 `List<String>`으로 바인딩
+  - [x] 빈 값 기본값(`public-base-url`, `allowed-origins`)이 `""`/빈 리스트로 바인딩
+  - [x] 기본값(`presigned-expiry-seconds=60`, `ffmpeg-timeout-minutes=3`) 검증
 - **주의:**
   - [계획] `@ConfigurationPropertiesScan` vs `@EnableConfigurationProperties` 중 하나로 통일
   - [구현] 빈 문자열이 `null`로 들어오는 경우 방어
