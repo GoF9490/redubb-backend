@@ -158,15 +158,15 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [x] `./gradlew test` 통과
 - **주의:** [구현] DB에는 URL이 아닌 S3 키만 저장(`hls_playlist_key`)
 
-### [ ] T2-2 `StorageService` 인터페이스 + MinIO 구현 (단건 연산)
+### [x] T2-2 `StorageService` 인터페이스 + MinIO 구현 (단건 연산)
 - **목표:** 버킷 존재 확인/생성(기동 시), 원본·앨범아트 업로드(Content-Type 지정), 객체 삭제, presigned GET URL 생성, 객체 다운로드를 `StorageService` 인터페이스와 MinIO 구현체(`StorageConfig`로 `MinioClient` 빈)로 만든다.
 - **선행:** T0-3
 - **완료 조건:**
-  - [ ] `MinioClient`를 Mock으로 둔 단위 테스트: 업로드 시 지정한 key·contentType이 전달
-  - [ ] 버킷이 있으면 생성 호출 없음, 없으면 생성 호출
-  - [ ] presign 호출 시 만료 시간과 고정 region 사용(네트워크 호출 없이 서명)
-  - [ ] SDK 예외가 도메인 예외(`500 INTERNAL_ERROR` 대상)로 변환
-  - [ ] `./gradlew test` 통과
+  - [x] `MinioClient`를 Mock으로 둔 단위 테스트: 업로드 시 지정한 key·contentType이 전달
+  - [x] 버킷이 있으면 생성 호출 없음, 없으면 생성 호출
+  - [x] presign 호출 시 만료 시간과 고정 region 사용(네트워크 호출 없이 서명)
+  - [x] SDK 예외가 도메인 예외(`500 INTERNAL_ERROR` 대상)로 변환
+  - [x] `./gradlew test` 통과
 - **주의:**
   - [탐색] minio 8.5.14의 `getPresignedObjectUrl`·`region` 지정 방식(Context7로 확인)
   - [계획] 인터페이스 메서드는 `Resource`/`InputStream` 등 파일 객체를 이벤트로 넘기지 않는 형태로 설계
