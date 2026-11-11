@@ -232,13 +232,13 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 
 ## Phase 3 — 업로드 동기 파이프라인
 
-### [ ] T3-1 변환 이벤트·디스패처
+### [x] T3-1 변환 이벤트·디스패처
 - **목표:** `TranscodeEventDto(trackId, originalS3Key)`, `TranscodeTaskDispatcher` 인터페이스, `ApplicationEventPublisher` 기반 구현.
 - **선행:** T1-1
 - **완료 조건:**
-  - [ ] 디스패처 단위 테스트: `dispatch(dto)`가 `publishEvent(dto)`를 정확히 1회 호출
-  - [ ] DTO에 파일 객체·로컬 경로 필드가 없음(필드 2개만)
-  - [ ] `./gradlew test` 통과
+  - [x] 디스패처 단위 테스트: `dispatch(dto)`가 `publishEvent(dto)`를 정확히 1회 호출
+  - [x] DTO에 파일 객체·로컬 경로 필드가 없음(필드 2개만)
+  - [x] `./gradlew test` 통과
 - **주의:** [검토] 호출부(`TrackService`)가 변환 구현체를 직접 참조하지 않는지
 
 ### [ ] T3-2 `TrackService.upload` 정상 경로

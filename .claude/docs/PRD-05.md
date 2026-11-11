@@ -327,7 +327,7 @@ com.streaming.music
 │   └── AuthController.java                  # 현재 로그인 사용자 정보 및 프로필 이미지 조회 (/api/auth/me)
 ├── dto/                     # 계층 간 데이터 전송 객체
 │   ├── request/             # TrackUploadRequest.java (file, title, artist, album, artworkFile)
-│   ├── response/            # TrackResponse, TrackPageResponse, StreamPlayResponse, DownloadInfo, UserResponse, ErrorResponse
+│   ├── response/            # TrackResponse, TrackPageResponse, StreamPlayResponse, DownloadInfo, UserResponse (공통 에러 응답 ErrorResponse는 exception/ 패키지에 위치)
 │   └── event/               # TranscodeEventDto.java ({ trackId, originalS3Key })
 ├── entity/                  # 도메인/영속성 엔티티 (PRD-07 DDL과 1:1 매핑)
 │   ├── User.java            # (userId, provider, providerId, email, profileImageUrl, role, createdAt, lastLoginAt)
@@ -345,13 +345,13 @@ com.streaming.music
 │   ├── TrackService.java                # 음원 업로드·키워드 검색 조회·재생 정보·다운로드 경로 제어
 │   ├── PlaybackLogService.java          # 재생(STREAM)·다운로드(DOWNLOAD) 이력 기록
 │   ├── AudioMetadataValidator.java      # Tika 위변조 검증 및 JAudioTagger 파싱/보정
-│   ├── StorageService.java              # [인터페이스] RustFS 버킷 초기화, 원본·앨범아트·HLS 재귀 업로드, presigned URL 생성, 객체 삭제
+│   ├── StorageService.java              # [인터페이스] RustFS 버킷 초기화, 원본·앨범아트·HLS 재귀 업로드, presigned URL 생성, 객체 삭제 (구현체 MinioStorageService, 기동 시 버킷 확인은 StorageBucketInitializer)
 │   ├── MediaUrlResolver.java            # S3 Key ➔ 클라이언트 공개 URL(streamUrl, artworkUrl) 변환 (app.media.public-base-url 적용)
 │   ├── TranscodeTaskDispatcher.java     # [인터페이스] 비동기 변환 이벤트 발행 (결합도 분리)
 │   ├── FfmpegCommandRunner.java         # [인터페이스] FFmpeg 프로세스 실행 (타임아웃 포함, 테스트 시 Mock)
 │   ├── HlsTranscodeService.java         # @Async FFmpeg 실행 및 상태(READY/FAILED) 갱신
 │   └── TranscodeRecoveryRunner.java     # 기동 시 미완료(PENDING/PROCESSING) 트랙 정리 (ApplicationRunner)
-└── exception/               # 전역 예외 처리 (@RestControllerAdvice, ErrorCode enum, BusinessException 계층)
+└── exception/               # 전역 예외 처리 (@RestControllerAdvice GlobalExceptionHandler, ErrorCode enum, ErrorResponse record, BusinessException 계층: InvalidAudioFormat/InvalidArtwork/TrackNotFound/TrackNotReady/StorageException)
 ```
 
 > **엔티티 기준:** 컬럼명·타입·NULL 허용 여부는 PRD-07 §4·§6 DDL이 단일 기준입니다. `prod` 프로파일은 `ddl-auto: validate`로 불일치를 기동 시점에 검출합니다. 시간 컬럼(`TIMESTAMPTZ`)은 `Instant` 또는 `OffsetDateTime`으로 매핑합니다.
