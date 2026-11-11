@@ -241,15 +241,16 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [x] `./gradlew test` 통과
 - **주의:** [검토] 호출부(`TrackService`)가 변환 구현체를 직접 참조하지 않는지
 
-### [ ] T3-2 `TrackService.upload` 정상 경로
+### [x] T3-2 `TrackService.upload` 정상 경로
 - **목표:** 임시 파일 저장 → Tika 검증 → 메타/커버 결정(커스텀 > 내장 > null) → 원본·앨범아트 저장 → `PENDING` 저장 → 이벤트 발행.
 - **선행:** T1-2, T2-2, T2-5, T3-1
 - **완료 조건:**
-  - [ ] `TrackServiceTest` 업로드 ①: 커스텀 `artworkFile` 있으면 우선 저장, 없으면 내장 커버 저장, 둘 다 없으면 `artworkS3Key=null`
-  - [ ] 원본 키가 `original/{yyyy}/{mm}/{uuid}.{ext}`, 앨범 키가 `artwork/{uuid}.jpg`, Content-Type이 실제 MIME
-  - [ ] 저장된 `Track`이 `status=PENDING`, `hlsPlaylistKey=null`
-  - [ ] `TranscodeEventDto(trackId, originalS3Key)` 1회 발행
-  - [ ] `./gradlew test` 통과
+  - [x] `TrackServiceTest` 업로드 ①: 커스텀 `artworkFile` 있으면 우선 저장, 없으면 내장 커버 저장, 둘 다 없으면 `artworkS3Key=null`
+  - [x] 원본 키가 `original/{yyyy}/{mm}/{uuid}.{ext}`, 앨범 키가 `artwork/{uuid}.jpg`, Content-Type이 실제 MIME
+  - [x] 저장된 `Track`이 `status=PENDING`, `hlsPlaylistKey=null`
+  - [x] `TranscodeEventDto(trackId, originalS3Key)` 1회 발행
+  - [x] `./gradlew test` 통과
+  - **구현 메모(기록):** 시그니처 `Track upload(TrackUploadRequest, Long userId)`. 임시 파일은 `{uuid}_raw.upload`로 저장 → Tika 검증 → `{uuid}_raw.{ext}`로 이름 변경 → `extractMetadata`. 스토리지 업로드는 트랜잭션 밖, `save`+`dispatch`만 `TransactionTemplate`으로 묶음. `userId`가 있으면 `findById().orElse(null)`로 uploader 설정(존재하지 않으면 익명). 길이 정책: request로 직접 보낸 title/artist/album 한도(200/150/200자) 초과는 `InvalidRequestException`(400), 태그·파일명 파생값과 originalFilename(255)은 절단. 0바이트 artworkFile은 없는 것으로 취급, 내장 커버가 유효하지 않으면 null로 무시. `userId`가 있는 경로는 Mockito로만 검증했으므로 detached `User`를 `Track.uploader`로 저장하는 실제 DB 동작은 T4-5/T6-7 통합 확인 시 함께 본다.
 - **주의:**
   - [계획] 트랜잭션 경계: 스토리지 업로드는 DB 트랜잭션 밖, 엔티티 저장+이벤트 발행은 트랜잭션 안(커밋 후 리스너 동작 전제)
   - [구현] `uuid` 생성은 서비스에서, 연·월 계산은 `Clock` 주입(테스트 고정)
