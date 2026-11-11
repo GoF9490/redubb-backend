@@ -96,14 +96,14 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 
 ## Phase 1 — 도메인·영속성 (PRD-07 DDL 기준)
 
-### [ ] T1-1 엔티티·Enum
+### [x] T1-1 엔티티·Enum
 - **목표:** `TrackStatus`, `ActionType`, `User`, `Track`, `PlaybackLog`를 PRD-07 DDL과 1:1로 매핑한다.
 - **선행:** T0-2
 - **완료 조건:**
-  - [ ] `@DataJpaTest`: 3개 엔티티 저장·조회, `Track` UUID PK를 앱이 발급해 저장
-  - [ ] `User.providerId`·`email` 유니크 위반 시 예외
-  - [ ] 시간 컬럼이 `Instant`로 왕복 저장되고 `updatedAt`이 갱신 시 변경
-  - [ ] enum이 문자열로 저장(`status='PENDING'`)
+  - [x] `@DataJpaTest`: 3개 엔티티 저장·조회, `Track` UUID PK를 앱이 발급해 저장
+  - [x] `User.providerId`·`email` 유니크 위반 시 예외
+  - [x] 시간 컬럼이 `Instant`로 왕복 저장되고 `updatedAt`이 갱신 시 변경
+  - [x] enum이 문자열로 저장(`status='PENDING'`)
 - **주의:**
   - [탐색] PRD-07 §4·§6 DDL의 컬럼 길이·NULL 허용(`uploader_id`, `artwork_s3_key`, `hls_playlist_key`, `album`, `error_message`)
   - [구현] `@GeneratedValue` 사용 금지(UUID는 앱 발급), `@Enumerated(STRING)`
