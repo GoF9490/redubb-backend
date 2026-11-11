@@ -14,6 +14,7 @@ import com.streaming.music.config.properties.JwtProperties;
 import com.streaming.music.entity.User;
 import com.streaming.music.exception.GlobalExceptionHandler;
 import com.streaming.music.exception.UnauthorizedException;
+import com.streaming.music.security.CustomOidcUserService;
 import com.streaming.music.security.JwtTokenProvider;
 import com.streaming.music.security.RestAuthenticationEntryPoint;
 import com.streaming.music.service.MediaUrlResolver;
@@ -60,8 +61,11 @@ class AuthControllerTest {
         }
 
         @Bean
+        @org.springframework.context.annotation.Primary
         JwtProperties jwtProperties() {
-            return new JwtProperties(KEY, 3_600_000L, null, null);
+            // RedirectUriPolicy 기동 검증을 통과하는 유효한 redirect 설정이 필요하다
+            return new JwtProperties(KEY, 3_600_000L, "http://localhost/auth/callback",
+                    List.of("http://localhost/auth/callback", "musicapp://oauth2/callback"));
         }
 
         @Bean
@@ -81,6 +85,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private CustomOidcUserService customOidcUserService;
 
     @MockitoBean
     private TrackService trackService;

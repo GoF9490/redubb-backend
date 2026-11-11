@@ -479,19 +479,23 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
     - **확인(기록):** `sub`·`email`·`picture`만 추출하고, 반환 principal(`AuthenticatedOidcUser`)의 클레임/attributes/ID 토큰에 `name`·`given_name`·`family_name`이 없음을 테스트로 확인했다. 최소 클레임으로 `OidcIdToken`을 재구성하지만, `OidcAuthorizationCodeAuthenticationProvider`가 서명·클레임·nonce 검증을 `loadUser` 호출 전에 끝내고 이후 재검증하지 않아 영향이 없음을 jar 소스로 확인했다. `email_verified`는 Boolean `false` 또는 문자열 `"false"`일 때만 거부하며 다른 타입은 예외 없이 통과한다. 예외 메시지·로그에는 속성 값·토큰이 없다.
   - **T6-5 연동 메모(기록):** `AuthenticatedOidcUser`(`getUserId()`, `getRole()`)가 principal이므로 성공 핸들러는 `authentication.getPrincipal()`을 캐스팅해 `jwtTokenProvider.createToken(userId, role)`로 발급한다. 실제 Google 응답을 쓰는 통합 검증은 하지 않았다(위임 객체를 Mock으로 대체한 단위 테스트).
 
-### [ ] T6-5 성공·실패 핸들러
+### [x] T6-5 성공·실패 핸들러
 - **목표:** `OAuth2AuthenticationSuccessHandler`(화이트리스트 완전 일치 시 `?token=`, 불일치 시 `default?error=invalid_redirect_uri`, 쿠키 삭제)와 `OAuth2AuthenticationFailureHandler`(`?error=`).
 - **선행:** T6-1, T6-3
 - **완료 조건:**
-  - [ ] `OAuth2AuthenticationSuccessHandlerTest` 1: 웹·앱 `redirect_uri` 쿠키 → `{redirect_uri}?token={jwt}` 리다이렉트
-  - [ ] 2: 화이트리스트 외 URI → 토큰 없이 `?error=invalid_redirect_uri`
-  - [ ] 3: 처리 후 두 쿠키 삭제
-  - [ ] `redirect_uri` 없음 → 기본 URI로 `?token=`
-  - [ ] 부분 일치/대소문자·쿼리 추가 변형 URI 거부
-  - [ ] 실패 핸들러가 `?error={code}`로 리다이렉트
-  - [ ] `./gradlew test` 통과
+  - [x] `OAuth2AuthenticationSuccessHandlerTest` 1: 웹·앱 `redirect_uri` 쿠키 → `{redirect_uri}?token={jwt}` 리다이렉트
+  - [x] 2: 화이트리스트 외 URI → 토큰 없이 `?error=invalid_redirect_uri`
+  - [x] 3: 처리 후 두 쿠키 삭제
+  - [x] `redirect_uri` 없음 → 기본 URI로 `?token=`
+  - [x] 부분 일치/대소문자·쿼리 추가 변형 URI 거부
+  - [x] 실패 핸들러가 `?error={code}`로 리다이렉트
+  - [x] `./gradlew test` 통과
 - **주의:** [검토] Open Redirect 방지 — 완전 일치(scheme·host·port·path), `musicapp://` 커스텀 스킴 URI 파싱 동작
+  - **구현(기록):** `RedirectUriPolicy.isAllowed`는 화이트리스트와의 **문자열 완전 일치(대소문자 구분)** 이며 요청 값을 trim·소문자화·디코딩·URI 파싱하지 않는다(파싱 불일치 우회 방지). 설정이 잘못되면(화이트리스트 비어 있음, 기본 URI가 화이트리스트에 없음, 항목에 `? # \ 공백 제어문자`) **기동 시 fail-fast**. 거부 시 토큰 없이 기본 URI + `?error=invalid_redirect_uri`. 토큰은 `{uri}?token={jwt}`(값 URL 인코딩, `UriComponentsBuilder` 미사용으로 `musicapp://` 재정규화 방지), 응답은 `sendRedirect` 대신 `302` + `Location` 직접 설정하며 `Cache-Control: no-store`·`Pragma: no-cache`·`Referrer-Policy: no-referrer`를 붙인다. 모든 경로가 **읽기 → 검증 → 쿠키 삭제 → 응답** 순서로 같은 종료 지점을 지난다. principal이 `AuthenticatedOidcUser`가 아니면 `error=login_failed`, JWT 발급 실패는 `error=server_error`. 실패 핸들러의 오류 코드는 허용 목록 7개만 그대로 전달하고 그 외(예외 메시지 포함)는 `login_failed`로 치환한다. 우회 시도 23종(`javascript:`, `//evil.com`, `localhost.evil.com`, `@evil.com`, `#frag`, `?x=1`, 대문자, 공백, CRLF, `%2e`, trailing slash, `:80` 등)이 모두 거부됨을 테스트로 확인했다. 쿠키 저장소는 `SecurityConfig`의 `@Bean`이며 `oauth2Login`과 두 핸들러가 같은 인스턴스를 공유한다. `@EnableConfigurationProperties(JwtProperties.class)`를 `SecurityConfig`에 추가했다(`@WebMvcTest`에서는 `@ConfigurationPropertiesScan`이 적용되지 않아 `JwtProperties` 빈이 없기 때문이며 전체 컨텍스트에서 중복 문제 없음).
+  - **동작 메모(기록):** 저장소가 빈 값/공백 `redirect_uri` 쿠키를 "없음"으로 취급하므로 이 경우 기본 URI로 `?token=`이 붙는다(기본 URI는 설정이 신뢰하는 값이라 안전). `RedirectUriPolicy.isAllowed("")`는 false다.
   - [검토] **T6-2 이관 회귀:** `oauth2Login`을 `SecurityConfig`에 추가한 뒤에도 미인증 `GET /api/auth/me`가 로그인 페이지 리다이렉트가 아니라 `401 UNAUTHORIZED` JSON을 반환하는지 확인하는 `@WebMvcTest`(또는 통합) 회귀 테스트를 추가한다(`exceptionHandling.authenticationEntryPoint`를 명시했는데도 `oauth2Login`이 `/api/**`의 진입점을 바꾸지 않는지 확인).
+    - **확인(기록, `OAuth2LoginFlowTest`):** `oauth2Login` 추가 후에도 미인증 `GET /api/auth/me`는 401 JSON이며 `Location` 헤더가 없다. `GET /oauth2/authorization/google`은 302로 `accounts.google.com`에 이동하며 `state`·`nonce`·`client_id`·`scope=openid`·`redirect_uri`를 포함하고 `oauth2_auth_request`(HttpOnly, SameSite=Lax)·`oauth2_redirect_uri` 쿠키가 생기며 **`JSESSIONID`는 없다**. 쿠키 없이 `/login/oauth2/code/google`을 호출하면 `?error=authorization_request_not_found`로 302되어 실패 핸들러까지 연결됨을 확인했다. `GET /login`은 404(기본 로그인 페이지 미노출). 실제 Google 호출을 쓰는 검증은 하지 않았다(콜백 성공 처리는 핸들러 단위 테스트로 갈음).
+  - **범위 밖 위험(기록):** JWT가 URL 쿼리(`{redirect_uri}?token=...`)로 전달되므로 웹 콜백 요청(`/auth/callback?token=...`)이 **Nginx 접근 로그에 `token` 쿼리로 남을 수 있다**. 로그 포맷 설정은 PRD-04(Nginx) 소관이라 이 저장소에서는 해결하지 않으며, 통합 단계에서 `/auth/callback`의 쿼리를 접근 로그에서 제외하거나 마스킹하는 설정을 검토한다(MVP 이후 과제: 토큰을 URL 대신 단기 일회용 코드 교환 방식으로 전환).
 
 ### [ ] T6-6 CORS 설정
 - **목표:** `app.cors.allowed-origins`가 비어 있으면 CORS 비활성, 값이 있으면 해당 오리진에 한해 `GET, POST, OPTIONS`와 `Authorization`, `Content-Type` 허용(`allowCredentials=false`).

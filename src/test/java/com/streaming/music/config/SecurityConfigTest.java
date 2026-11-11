@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.streaming.music.security.CustomOidcUserService;
 import com.streaming.music.security.JwtTokenProvider;
 import com.streaming.music.security.RestAuthenticationEntryPoint;
 import java.util.List;
@@ -30,6 +31,9 @@ class SecurityConfigTest {
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private CustomOidcUserService customOidcUserService;
 
     @Autowired
     private MockMvc mockMvc;

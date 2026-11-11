@@ -1,9 +1,16 @@
 package com.streaming.music.config;
 
+import com.streaming.music.config.properties.JwtProperties;
+import com.streaming.music.security.CustomOidcUserService;
+import com.streaming.music.security.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.streaming.music.security.OAuth2AuthenticationFailureHandler;
+import com.streaming.music.security.OAuth2AuthenticationSuccessHandler;
+import com.streaming.music.security.RedirectUriPolicy;
 import com.streaming.music.security.JwtAuthenticationFilter;
 import com.streaming.music.security.JwtTokenProvider;
 import com.streaming.music.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,14 +27,26 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  */
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(JwtProperties.class)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final CustomOidcUserService customOidcUserService;
+    private final JwtProperties jwtProperties;
+
+    /** 인가 요청 저장소. oauth2Login과 성공·실패 핸들러가 같은 인스턴스를 공유한다. */
+    @Bean
+    public HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository() {
+        return new HttpCookieOAuth2AuthorizationRequestRepository();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        HttpCookieOAuth2AuthorizationRequestRepository cookieRepository = authorizationRequestRepository();
+        // 설정이 잘못되면 기동 시 실패한다(fail-fast)
+        RedirectUriPolicy redirectUriPolicy = new RedirectUriPolicy(jwtProperties);
         http
             .csrf(AbstractHttpConfigurer::disable)
             // T6-6 확장 지점: .cors(cors -> cors.configurationSource(...))
@@ -41,7 +60,15 @@ public class SecurityConfig {
                 // 추후 권한 제어 시 /api/tracks/** 등 경로별 규칙을 anyRequest() 앞에 둔다.
                 .anyRequest().permitAll()
             )
-            // T6-3~T6-5 확장 지점: .oauth2Login(...) 추가 후에도 EntryPoint는 위에서 명시한 401 JSON을 유지해야 한다.
+            // /oauth2/**, /login/oauth2/**는 anyRequest().permitAll()에 포함된다.
+            // oauth2Login 추가 후에도 EntryPoint는 위에서 명시한 401 JSON을 유지한다(회귀 테스트로 확인).
+            .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(endpoint -> endpoint.authorizationRequestRepository(cookieRepository))
+                .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
+                .successHandler(new OAuth2AuthenticationSuccessHandler(
+                    jwtTokenProvider, redirectUriPolicy, cookieRepository))
+                .failureHandler(new OAuth2AuthenticationFailureHandler(redirectUriPolicy, cookieRepository))
+            )
             // 필터는 빈이 아닌 직접 생성하여 서블릿 컨테이너 자동 등록(이중 실행)을 피한다.
             .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 

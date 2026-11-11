@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.streaming.music.config.SecurityConfig;
+import com.streaming.music.security.CustomOidcUserService;
 import com.streaming.music.dto.request.TrackUploadRequest;
 import com.streaming.music.dto.response.DownloadInfo;
 import com.streaming.music.dto.response.StreamPlayResponse;
@@ -56,6 +57,9 @@ class TrackControllerTest {
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private CustomOidcUserService customOidcUserService;
 
     @Autowired
     private MockMvc mockMvc;
