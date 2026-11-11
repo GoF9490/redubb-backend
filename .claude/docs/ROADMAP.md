@@ -551,16 +551,27 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 - **T7 이관 항목 확인:** 실제 PostgreSQL에서 lower(:pattern) escape 검색이 %, _, 역슬래시를 리터럴로 처리하고 대소문자 무시·status 필터와 조합됨을 확인(시드 5건, 모두 200).
 - **참고:** 기동 시 StorageBucketInitializer가 fail-fast이므로 RustFS 없이는 prod 기동 불가(의도된 동작).
 
-### [ ] T7-3 수동 스모크 (백엔드 + RustFS + FFmpeg)
+### [x] T7-3 수동 스모크 (백엔드 + RustFS + FFmpeg)
 - **목표:** 실제 RustFS와 FFmpeg로 업로드 → `READY` → `/play` → `/download` 헤더까지 백엔드 단독 확인.
 - **선행:** T7-2
 - **완료 조건:**
-  - [ ] 샘플 MP3 업로드 후 폴링으로 `READY` 도달, RustFS에 `original/`, `artwork/`, `hls/{uuid}/index.m3u8`, `chunk_*.ts` 존재
-  - [ ] `/download` 응답의 presigned URL로 직접 GET 시 원본 반환, 서명 없이는 거부
-  - [ ] 결과를 체크리스트로 기록
+  - [x] 샘플 MP3 업로드 후 폴링으로 `READY` 도달, RustFS에 `original/`, `artwork/`, `hls/{uuid}/index.m3u8`, `chunk_*.ts` 존재
+  - [x] `/download` 응답의 presigned URL로 직접 GET 시 원본 반환, 서명 없이는 거부
+  - [x] 결과를 체크리스트로 기록
 - **주의:**
   - [검토] Nginx 의존 항목(`X-Accel-Redirect` 헤더 유지, presigned 쿼리 보존, RustFS 경로별 정책)은 통합 테스트로 이관한다(PRD.md §7.1)
   - [탐색] `STORAGE_ENDPOINT` host:port가 presign 서명 Host가 됨(PRD-05 §4.2 주의)
+- **스모크 결과(2026-11-12):** 환경 = `music-backend:t7-1`(ffmpeg 4.4.2, prod 프로파일) + `rustfs/rustfs:latest`(sha256:b81d16a9…) + `postgres:16-alpine`(PRD-07 SQL 적용), `MAX_UPLOAD_SIZE=1MB`, 더미 시크릿.
+  - [x] MP3 업로드 202 `PENDING` → 약 4초 후 `READY`, 태그 추출 정상. RustFS에 `original/YYYY/MM/{uuid}.mp3`, `artwork/{uuid}.jpg`, `hls/{uuid}/index.m3u8`, `chunk_000.ts` 존재(WAV·FLAC·M4A 동일, 8초 M4A는 chunk 2개, 작업 디렉터리 잔여 파일 없음)
+  - [x] 실제 FFmpeg 생성물 확인(T2-6 이관), ERROR 로그 없음
+  - [x] 태그 M4A 태그·커버 추출 확인(T2-5 이관), 커버 sha256이 원본과 동일
+  - [x] `/play` 200 JSON(PRD-05 §7.1.1 일치, STREAM 이력 기록), `/download` 200 본문 없음 + `X-Accel-Redirect`/`Content-Disposition`/`Content-Type` 일치(DOWNLOAD 이력 기록)
+  - [x] presigned 직접 GET 200 + sha256 원본 일치. 서명 없음·변조·다른 키에 재사용·Host 불일치·만료(60초 후)·원본 익명 GET·버킷 목록 익명 조회 모두 403. `hls/*`, `artwork/*` 익명 GET 200
+  - [x] `STORAGE_ENDPOINT` host:port가 서명 Host가 됨 확인(`rustfs:9000` 서명은 `Host: rustfs:9000`일 때만 200)
+  - [x] 실제 Tomcat multipart 413(T3-4 이관): 1MB 한도에 3MB 업로드 시 413 `PAYLOAD_TOO_LARGE` JSON, 연결 리셋 없음, 직후 정상 업로드 202
+  - [x] 위조 파일 400 `INVALID_AUDIO_FORMAT`, 무태그 WAV는 `Unknown Artist`, 이력 `user_id`는 익명이라 NULL
+  - [ ] Nginx 의존 항목(헤더 유지, presigned 쿼리의 Nginx 통과 보존, `STORAGE_HOST_HEADER` 일치, 동일 오리진 `Origin` 판정(T6-6))은 범위 밖으로 **통합 테스트 이관 유지**
+  - **보고(PRD 문서 간 차이):** 생성된 m3u8에 PRD-06 §4.2 예시의 `#EXT-X-PLAYLIST-TYPE:VOD`가 없음(§4.1 명령에 `-hls_playlist_type vod`가 없고 ffmpeg 4.4.2 기본 동작). `#EXT-X-ENDLIST`는 있어 재생 영향 없음. PRD-06 소관이라 수정하지 않음.
 
 ---
 
