@@ -528,22 +528,28 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
 
 ## Phase 7 — 배포 준비 및 백엔드 측 확인
 
-### [ ] T7-1 Dockerfile·환경변수 예시
+### [x] T7-1 Dockerfile·환경변수 예시
 - **목표:** PRD-05 §2.2 `Dockerfile`, `.env.example`(PRD-05 §4.3 변수 전체), `.gitignore`에 `.env` 추가.
 - **선행:** T6-7
 - **완료 조건:**
-  - [ ] `./gradlew build` 후 `docker build` 성공
-  - [ ] `.env.example`에 PRD-05 §4.3 모든 환경변수 포함(시크릿은 예시 값만)
-  - [ ] `git check-ignore .env` 성공
+  - [x] `./gradlew build` 후 `docker build` 성공
+  - [x] `.env.example`에 PRD-05 §4.3 모든 환경변수 포함(시크릿은 예시 값만)
+  - [x] `git check-ignore .env` 성공
 - **주의:** [검토] 이미지에 시크릿이 포함되지 않는지, `docker-compose`는 범위 밖(보고만)
+- **구현 메모:** 멀티스테이지(JDK 빌드 → JRE+FFmpeg 런타임, 비루트 uid 1001, `-XX:MaxRAMPercentage=75`)로 PRD-05 §2.2 원문과 의도적으로 다름. HEALTHCHECK는 actuator 의존성이 없어 미적용(라이브러리 추가 금지). 시크릿은 ARG/ENV로 넣지 않으며 이미지·jar에 없음을 확인. `.env.example`은 §4.3 전체 + 선택 변수 5개(주석), §4.3 표에 선택 변수 행 보강.
+- **알려진 한계:** 이 PC의 Docker 네트워크가 archive.ubuntu.com을 해석하지 못해 원본 Dockerfile의 `docker build`는 apt 단계에서 실패(환경 문제). 미러로 바꾼 임시 Dockerfile로는 성공(ffmpeg 4.4.2, uid=1001 확인). 정상 네트워크에서 원본 빌드 재확인 필요.
+- **보고(범위 밖):** `.claude/skills/foundry-agentic-loop/evals/fixtures/rapid-locked/.env`가 git에 추적됨(T7-1과 무관한 스킬 픽스처). `docker-compose`는 범위 밖.
 
-### [ ] T7-2 `prod` 스키마 검증
+### [x] T7-2 `prod` 스키마 검증
 - **목표:** PRD-07 `init.sql`을 적용한 PostgreSQL에서 `ddl-auto: validate`로 엔티티 매핑 일치를 확인한다.
 - **선행:** T1-1, T7-1
 - **완료 조건:**
-  - [ ] 로컬 PostgreSQL 컨테이너에 `init.sql` 적용 후 `prod` 프로파일 기동 성공
-  - [ ] 매핑 불일치 발견 시 엔티티 수정(또는 PRD-07 변경 필요 시 보고)
+  - [x] 로컬 PostgreSQL 컨테이너에 `init.sql` 적용 후 `prod` 프로파일 기동 성공
+  - [x] 매핑 불일치 발견 시 엔티티 수정(또는 PRD-07 변경 필요 시 보고)
 - **주의:** [탐색] `init.sql` 작성·수정은 PRD-07 범위 — 읽기만 하고, 불일치는 사용자에게 보고
+- **검증 결과:** postgres:16-alpine + PRD-07 init.sql(읽기 전용 마운트) + RustFS(임시)로 prod(ddl-auto: validate) 기동 성공(Hibernate 7.4.13, PG 16.15, Started MusicApplication, SchemaManagementException 없음). 엔티티·init.sql 불일치 없음(코드·문서 수정 없음).
+- **T7 이관 항목 확인:** 실제 PostgreSQL에서 lower(:pattern) escape 검색이 %, _, 역슬래시를 리터럴로 처리하고 대소문자 무시·status 필터와 조합됨을 확인(시드 5건, 모두 200).
+- **참고:** 기동 시 StorageBucketInitializer가 fail-fast이므로 RustFS 없이는 prod 기동 불가(의도된 동작).
 
 ### [ ] T7-3 수동 스모크 (백엔드 + RustFS + FFmpeg)
 - **목표:** 실제 RustFS와 FFmpeg로 업로드 → `READY` → `/play` → `/download` 헤더까지 백엔드 단독 확인.
