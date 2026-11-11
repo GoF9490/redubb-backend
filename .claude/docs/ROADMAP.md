@@ -345,16 +345,18 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [검토] 테스트 프로파일에서 Runner가 실제 DB를 건드려 다른 테스트에 영향 주지 않는지
     - **확인(기록):** `@Profile("!test")`로 `@SpringBootTest`(`local`+`test`)에서는 Runner가 등록되지 않는다(Runner 로그가 나온 결과 파일은 `TranscodeRecoveryRunnerTest` 하나뿐).
 
-### [ ] T4-5 이벤트 연결 통합 확인
+### [x] T4-5 이벤트 연결 통합 확인
 - **목표:** 업로드 트랜잭션 **커밋 이후**에만 변환 리스너가 호출되는지 확인한다.
 - **선행:** T4-3, T3-3
 - **완료 조건:**
-  - [ ] `@SpringBootTest` + `StorageService`/`FfmpegCommandRunner` Mock: 커밋 시 리스너 호출, 롤백 시 미호출
-  - [ ] 리스너가 `transcodeExecutor` 스레드에서 실행됨(스레드명 검증)
-  - [ ] `./gradlew test` 통과
+  - [x] `@SpringBootTest` + `StorageService`/`FfmpegCommandRunner` Mock: 커밋 시 리스너 호출, 롤백 시 미호출
+  - [x] 리스너가 `transcodeExecutor` 스레드에서 실행됨(스레드명 검증)
+  - [x] `./gradlew test` 통과
+  - **통합 검증 결과(기록):** 앞 태스크에서 이관된 항목을 모두 실제 `@SpringBootTest`(H2)로 확인했다 — ① 커밋 후에만 변환 호출, 롤백(`setRollbackOnly`) 시 미호출, ② `transcode-` 스레드 실행, ③ 실제 큐 포화(실행 2 + 큐 50 = 52건 수용, 53번째 거부 → `FAILED(TRANSCODE_QUEUE_FULL)`, 나머지 52건 `READY`), ④ `userId`가 있는 업로드의 `Track.uploader` 실제 DB 저장(T3-2 이관), ⑤ 업로드 → 이벤트 → `process` → `READY` end-to-end(`hlsPlaylistKey=hls/{uuid}/index.m3u8`), ⑥ `dispatch` 실패 시 `upload` 전체 경로의 롤백 + 보상 삭제(T3-3 이관). 전체 테스트 2회 연속 통과로 플레이크 없음을 확인했다.
 - **주의:**
   - [탐색] `@Transactional` 테스트는 기본 롤백이라 AFTER_COMMIT이 호출되지 않음 → `TransactionTemplate` 사용
   - [검토] 비동기 검증은 `Awaitility` 없이도 가능한 방식(CountDownLatch) 우선
+    - **결정(기록):** 스레드 동기화·블록/해제는 `CountDownLatch`, 상태 폴링은 `spring-boot-starter-test`에 이미 포함된 Awaitility 4.3.0을 사용했다(`build.gradle.kts` 수정 없음). 롤백 미호출 검증은 시간 의존적 부정 검증(`after(300ms).never()`)이며 Javadoc에 근거를 남겼다.
 
 ---
 
