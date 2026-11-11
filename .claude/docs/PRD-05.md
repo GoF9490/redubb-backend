@@ -452,6 +452,7 @@ com.streaming.music
 #### 7.1.1. 응답 DTO 표준
 
 * **`TrackResponse`**: `{ trackId, title, artist, album, durationSeconds, status, artworkUrl, originalFilename, fileExtension, fileSizeBytes, createdAt }`
+  * `createdAt`은 UTC `Instant`의 ISO-8601 문자열(`2026-11-11T01:00:00Z`)로 직렬화합니다(에러 응답의 `timestamp`는 `+09:00` 표기). `errorMessage`는 응답에 포함하지 않습니다.
   * `artworkUrl`: `artwork_s3_key`가 있으면 `{public-base-url}/artwork/{track_uuid}.jpg`, 없으면 `null` (클라이언트 기본 썸네일 표시)
   * `errorMessage`는 내부 진단용이므로 응답에 포함하지 않으며, `status == FAILED`만 노출합니다.
 * **`TrackPageResponse`**: `{ content: TrackResponse[], page, size, totalElements, totalPages, hasNext }` (Spring `Page` 객체를 그대로 직렬화하지 않고 고정 스키마로 변환)

@@ -270,15 +270,16 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [계획] 이벤트 발행 후 커밋 실패 시 리스너가 실행되지 않으므로(AFTER_COMMIT) 보상과 충돌하지 않는지 확인
   - [검토] 앨범아트가 없는 경우 `deleteObject(null)` 호출 방지
 
-### [ ] T3-4 업로드 컨트롤러
+### [x] T3-4 업로드 컨트롤러
 - **목표:** `TrackController`의 `POST /api/tracks/upload`와 `TrackUploadRequest`, `TrackResponse` DTO.
 - **선행:** T3-3, T0-4, T2-1
 - **완료 조건:**
-  - [ ] `@WebMvcTest`: 정상 업로드 → `202` + `TrackResponse`(`status="PENDING"`, `errorMessage` 미노출)
-  - [ ] `file` 누락 → `400 INVALID_REQUEST`
-  - [ ] 서비스가 던지는 `InvalidAudioFormatException` → `400 INVALID_AUDIO_FORMAT`
-  - [ ] 용량 초과 → `413 PAYLOAD_TOO_LARGE`
-  - [ ] `./gradlew test` 통과
+  - [x] `@WebMvcTest`: 정상 업로드 → `202` + `TrackResponse`(`status="PENDING"`, `errorMessage` 미노출)
+  - [x] `file` 누락 → `400 INVALID_REQUEST`
+  - [x] 서비스가 던지는 `InvalidAudioFormatException` → `400 INVALID_AUDIO_FORMAT`
+  - [x] 용량 초과 → `413 PAYLOAD_TOO_LARGE`
+  - [x] `./gradlew test` 통과
+  - **구현 메모(기록):** 바인딩은 `@RequestPart("file")`·`@RequestPart(value="artworkFile", required=false)`·`@RequestParam(required=false)` 개별 파라미터 방식(file 누락 시 `MissingServletRequestPartException` → 기존 핸들러 400). `TrackResponse.from(Track, MediaUrlResolver)`는 T5-1/T5-2에서 재사용한다. `userId`는 `resolveUserId()` 한 곳에서 null 반환(T6-7 교체 지점). `createdAt`은 `Instant`(Z) 직렬화. 413은 서비스 mock이 `MaxUploadSizeExceededException`을 던지는 핸들러 매핑 검증뿐이며 **실제 Tomcat/multipart 한도 통합은 T7-3 스모크에서 확인**한다.
 - **주의:**
   - [탐색] Boot 4 MockMvc multipart 테스트 API
   - [검토] `TrackResponse` 필드가 PRD-05 §7.1.1과 정확히 일치(`artworkUrl`은 resolver 경유)
