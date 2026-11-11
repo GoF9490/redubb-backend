@@ -214,14 +214,15 @@ Phase 6의 `T6-1`, `T6-3`, `T6-6`은 Phase 2 이후 언제든 앞당길 수 있�
   - [구현] JAudioTagger 로거 소음 억제(테스트/운영 로그 레벨)
   - [검토] 공백 문자열을 "비어 있음"으로 취급
 
-### [ ] T2-6 `FfmpegCommandRunner`
+### [x] T2-6 `FfmpegCommandRunner`
 - **목표:** `FfmpegCommandRunner` 인터페이스와 `ProcessBuilder` 구현(명령 구성, 타임아웃 후 `destroyForcibly`, 출력 스트림 소비, 마지막 로그 500자 요약).
 - **선행:** T0-3
 - **완료 조건:**
-  - [ ] 명령 인자 빌더 단위 테스트: PRD-05 §6.3-3 명령과 동일한 인자(`-b:a 192k -ar 44100 -ac 2 -hls_time 6 -hls_list_size 0`, `chunk_%03d.ts`)
-  - [ ] 결과 타입(성공/비정상 종료/타임아웃) 반환 테스트(실행기 부분은 가짜 프로세스 스크립트 또는 명령 주입으로 검증)
-  - [ ] 로그 요약이 500자 이하
-  - [ ] `./gradlew test` 통과
+  - [x] 명령 인자 빌더 단위 테스트: PRD-05 §6.3-3 명령과 동일한 인자(`-b:a 192k -ar 44100 -ac 2 -hls_time 6 -hls_list_size 0`, `chunk_%03d.ts`)
+  - [x] 결과 타입(성공/비정상 종료/타임아웃) 반환 테스트(실행기 부분은 가짜 프로세스 스크립트 또는 명령 주입으로 검증)
+  - [x] 로그 요약이 500자 이하
+  - [x] `./gradlew test` 통과
+  - **구현 메모(기록):** `outputDir`은 러너가 만들지 않으므로 T4-2가 미리 생성해야 한다. 시작 실패는 예외 대신 `FAILED(-1, "FFMPEG_START_FAILED")`, 인터럽트는 `FAILED(-1, "INTERRUPTED")`로 반환한다. 이 PC에 ffmpeg가 없어 실제 FFmpeg 실행(`index.m3u8`, `chunk_000.ts` 생성)은 미검증이며 T7-3 스모크에서 확인한다.
 - **주의:**
   - [계획] 테스트 가능성을 위해 "명령 생성"과 "프로세스 실행"을 분리
   - [구현] `redirectErrorStream(true)` 후 출력 소비 필수(버퍼 막힘 방지), 경로에 공백 있는 Windows 환경 고려
