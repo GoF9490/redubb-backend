@@ -42,9 +42,9 @@ public class TrackController {
     public ResponseEntity<TrackResponse> uploadTrack(
             @RequestPart("file") MultipartFile file,
             @RequestPart(value = "artworkFile", required = false) MultipartFile artworkFile,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String artist,
-            @RequestParam(required = false) String album,
+            @RequestParam(name = "title", required = false) String title,
+            @RequestParam(name = "artist", required = false) String artist,
+            @RequestParam(name = "album", required = false) String album,
             @AuthenticationPrincipal AuthenticatedUser user) {
         TrackUploadRequest request = new TrackUploadRequest(file, title, artist, album, artworkFile);
         Track track = trackService.upload(request, resolveUserId(user));
@@ -58,23 +58,23 @@ public class TrackController {
      */
     @GetMapping
     public TrackPageResponse getTracks(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) TrackStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "status", required = false) TrackStatus status,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size) {
         return TrackPageResponse.from(trackService.getTracks(keyword, status, page, size), mediaUrlResolver);
     }
 
     /** 음원 단건 상세·상태 조회. 읽기 전용 공개 조회로 인증(T6-7)과 무관하다. */
     @GetMapping("/{trackId}")
-    public TrackResponse getTrack(@PathVariable UUID trackId) {
+    public TrackResponse getTrack(@PathVariable("trackId") UUID trackId) {
         return TrackResponse.from(trackService.getTrack(trackId), mediaUrlResolver);
     }
 
     /** 재생 진입점 조회. READY가 아니면 409, 없으면 404. 성공 시 STREAM 이력이 기록된다. */
     @GetMapping("/{trackId}/play")
     public StreamPlayResponse getPlayInfo(
-            @PathVariable UUID trackId, @AuthenticationPrincipal AuthenticatedUser user) {
+            @PathVariable("trackId") UUID trackId, @AuthenticationPrincipal AuthenticatedUser user) {
         return trackService.getPlayInfo(trackId, resolveUserId(user));
     }
 
@@ -85,7 +85,7 @@ public class TrackController {
      */
     @GetMapping("/{trackId}/download")
     public ResponseEntity<Void> getDownloadInfo(
-            @PathVariable UUID trackId, @AuthenticationPrincipal AuthenticatedUser user) {
+            @PathVariable("trackId") UUID trackId, @AuthenticationPrincipal AuthenticatedUser user) {
         DownloadInfo info = trackService.getDownloadInfo(trackId, resolveUserId(user));
         return ResponseEntity.ok()
                 .header("X-Accel-Redirect", info.xAccelRedirectUri())
