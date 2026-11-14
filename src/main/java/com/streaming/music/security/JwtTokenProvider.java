@@ -28,86 +28,86 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtTokenProvider {
 
-    private static final int MIN_KEY_BYTES = 32;
-    private static final String ROLE_CLAIM = "role";
-    private static final String EXPECTED_ALGORITHM = Jwts.SIG.HS256.getId();
+	private static final int MIN_KEY_BYTES = 32;
+	private static final String ROLE_CLAIM = "role";
+	private static final String EXPECTED_ALGORITHM = Jwts.SIG.HS256.getId();
 
-    private final SecretKey signingKey;
-    private final long accessTokenExpirationMs;
-    private final Clock clock;
-    private final JwtParser parser;
+	private final SecretKey signingKey;
+	private final long accessTokenExpirationMs;
+	private final Clock clock;
+	private final JwtParser parser;
 
-    public JwtTokenProvider(JwtProperties jwtProperties, Clock clock) {
-        String secretKey = jwtProperties.secretKey();
-        if (secretKey == null || secretKey.isBlank()) {
-            throw new IllegalStateException("app.jwt.secret-key가 설정되지 않았습니다.");
-        }
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < MIN_KEY_BYTES) {
-            throw new IllegalStateException("app.jwt.secret-key는 UTF-8 기준 최소 32바이트(256비트)여야 합니다.");
-        }
-        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
-        this.accessTokenExpirationMs = jwtProperties.accessTokenExpirationMs();
-        this.clock = clock;
-        // 파서는 불변·스레드 안전하므로 한 번만 생성해 재사용한다. 만료 판단은 주입된 Clock 기준이다.
-        this.parser = Jwts.parser()
-                .verifyWith(signingKey)
-                .clock(() -> Date.from(Instant.now(clock)))
-                .build();
-    }
+	public JwtTokenProvider(JwtProperties jwtProperties, Clock clock) {
+		String secretKey = jwtProperties.secretKey();
+		if (secretKey == null || secretKey.isBlank()) {
+			throw new IllegalStateException("app.jwt.secret-key가 설정되지 않았습니다.");
+		}
+		byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+		if (keyBytes.length < MIN_KEY_BYTES) {
+			throw new IllegalStateException("app.jwt.secret-key는 UTF-8 기준 최소 32바이트(256비트)여야 합니다.");
+		}
+		this.signingKey = Keys.hmacShaKeyFor(keyBytes);
+		this.accessTokenExpirationMs = jwtProperties.accessTokenExpirationMs();
+		this.clock = clock;
+		// 파서는 불변·스레드 안전하므로 한 번만 생성해 재사용한다. 만료 판단은 주입된 Clock 기준이다.
+		this.parser = Jwts.parser()
+				.verifyWith(signingKey)
+				.clock(() -> Date.from(Instant.now(clock)))
+				.build();
+	}
 
-    /** 액세스 토큰을 발급한다. */
-    public String createToken(Long userId, String role) {
-        if (userId == null) {
-            throw new IllegalArgumentException("userId는 필수입니다.");
-        }
-        if (role == null || role.isBlank()) {
-            throw new IllegalArgumentException("role은 필수입니다.");
-        }
-        Instant now = Instant.now(clock);
-        return Jwts.builder()
-                .subject(userId.toString())
-                .claim(ROLE_CLAIM, role)
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusMillis(accessTokenExpirationMs)))
-                .signWith(signingKey, Jwts.SIG.HS256)
-                .compact();
-    }
+	/** 액세스 토큰을 발급한다. */
+	public String createToken(Long userId, String role) {
+		if (userId == null) {
+			throw new IllegalArgumentException("userId는 필수입니다.");
+		}
+		if (role == null || role.isBlank()) {
+			throw new IllegalArgumentException("role은 필수입니다.");
+		}
+		Instant now = Instant.now(clock);
+		return Jwts.builder()
+				.subject(userId.toString())
+				.claim(ROLE_CLAIM, role)
+				.issuedAt(Date.from(now))
+				.expiration(Date.from(now.plusMillis(accessTokenExpirationMs)))
+				.signWith(signingKey, Jwts.SIG.HS256)
+				.compact();
+	}
 
-    /** 토큰을 검증하고 클레임을 반환한다. 무효(만료·위조·형식 오류 등)이면 empty를 반환한다. */
-    public Optional<JwtClaims> parseToken(String token) {
-        if (token == null || token.isBlank()) {
-            return Optional.empty();
-        }
-        try {
-            Jws<Claims> jws = parser.parseSignedClaims(token);
-            if (!EXPECTED_ALGORITHM.equals(jws.getHeader().getAlgorithm())) {
-                return rejectWarn("UNSUPPORTED");
-            }
-            Claims claims = jws.getPayload();
-            String subject = claims.getSubject();
-            String role = claims.get(ROLE_CLAIM, String.class);
-            if (subject == null || role == null || role.isBlank()) {
-                return rejectWarn("INVALID_CLAIMS");
-            }
-            return Optional.of(new JwtClaims(Long.parseLong(subject), role));
-        } catch (ExpiredJwtException e) {
-            log.debug("JWT 검증 실패: reason=EXPIRED");
-            return Optional.empty();
-        } catch (SignatureException e) {
-            return rejectWarn("INVALID_SIGNATURE");
-        } catch (MalformedJwtException e) {
-            return rejectWarn("MALFORMED");
-        } catch (UnsupportedJwtException e) {
-            return rejectWarn("UNSUPPORTED");
-        } catch (JwtException | IllegalArgumentException e) {
-            // 숫자가 아닌 subject(NumberFormatException)와 그 외 클레임 오류 포함
-            return rejectWarn("INVALID_CLAIMS");
-        }
-    }
+	/** 토큰을 검증하고 클레임을 반환한다. 무효(만료·위조·형식 오류 등)이면 empty를 반환한다. */
+	public Optional<JwtClaims> parseToken(String token) {
+		if (token == null || token.isBlank()) {
+			return Optional.empty();
+		}
+		try {
+			Jws<Claims> jws = parser.parseSignedClaims(token);
+			if (!EXPECTED_ALGORITHM.equals(jws.getHeader().getAlgorithm())) {
+				return rejectWarn("UNSUPPORTED");
+			}
+			Claims claims = jws.getPayload();
+			String subject = claims.getSubject();
+			String role = claims.get(ROLE_CLAIM, String.class);
+			if (subject == null || role == null || role.isBlank()) {
+				return rejectWarn("INVALID_CLAIMS");
+			}
+			return Optional.of(new JwtClaims(Long.parseLong(subject), role));
+		} catch (ExpiredJwtException e) {
+			log.debug("JWT 검증 실패: reason=EXPIRED");
+			return Optional.empty();
+		} catch (SignatureException e) {
+			return rejectWarn("INVALID_SIGNATURE");
+		} catch (MalformedJwtException e) {
+			return rejectWarn("MALFORMED");
+		} catch (UnsupportedJwtException e) {
+			return rejectWarn("UNSUPPORTED");
+		} catch (JwtException | IllegalArgumentException e) {
+			// 숫자가 아닌 subject(NumberFormatException)와 그 외 클레임 오류 포함
+			return rejectWarn("INVALID_CLAIMS");
+		}
+	}
 
-    private Optional<JwtClaims> rejectWarn(String reason) {
-        log.warn("JWT 검증 실패: reason={}", reason);
-        return Optional.empty();
-    }
+	private Optional<JwtClaims> rejectWarn(String reason) {
+		log.warn("JWT 검증 실패: reason={}", reason);
+		return Optional.empty();
+	}
 }

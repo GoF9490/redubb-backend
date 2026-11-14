@@ -14,13 +14,13 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 @Getter
 public class AuthenticatedOidcUser extends DefaultOidcUser {
 
-    private final Long userId;
-    private final String role;
+	private final Long userId;
+	private final String role;
 
-    public AuthenticatedOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken,
-            Long userId, String role) {
-        super(authorities, idToken, null, "sub");
-        this.userId = userId;
-        this.role = role;
-    }
+	public AuthenticatedOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken,
+			Long userId, String role) {
+		super(authorities, idToken, null, "sub");
+		this.userId = userId;
+		this.role = role;
+	}
 }

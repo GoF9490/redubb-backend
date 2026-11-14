@@ -34,48 +34,48 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtTokenProvider jwtTokenProvider;
-    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
-    private final CustomOidcUserService customOidcUserService;
-    private final JwtProperties jwtProperties;
-    private final CorsConfigurationSource corsConfigurationSource;
+	private final JwtTokenProvider jwtTokenProvider;
+	private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+	private final CustomOidcUserService customOidcUserService;
+	private final JwtProperties jwtProperties;
+	private final CorsConfigurationSource corsConfigurationSource;
 
-    /** 인가 요청 저장소. oauth2Login과 성공·실패 핸들러가 같은 인스턴스를 공유한다. */
-    @Bean
-    public HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository() {
-        return new HttpCookieOAuth2AuthorizationRequestRepository();
-    }
+	/** 인가 요청 저장소. oauth2Login과 성공·실패 핸들러가 같은 인스턴스를 공유한다. */
+	@Bean
+	public HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository() {
+		return new HttpCookieOAuth2AuthorizationRequestRepository();
+	}
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        HttpCookieOAuth2AuthorizationRequestRepository cookieRepository = authorizationRequestRepository();
-        // 설정이 잘못되면 기동 시 실패한다(fail-fast)
-        RedirectUriPolicy redirectUriPolicy = new RedirectUriPolicy(jwtProperties);
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .formLogin(AbstractHttpConfigurer::disable)
-            .httpBasic(AbstractHttpConfigurer::disable)
-            .logout(AbstractHttpConfigurer::disable)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/me").authenticated()
-                // 추후 권한 제어 시 /api/tracks/** 등 경로별 규칙을 anyRequest() 앞에 둔다.
-                .anyRequest().permitAll()
-            )
-            // /oauth2/**, /login/oauth2/**는 anyRequest().permitAll()에 포함된다.
-            // oauth2Login 추가 후에도 EntryPoint는 위에서 명시한 401 JSON을 유지한다(회귀 테스트로 확인).
-            .oauth2Login(oauth2 -> oauth2
-                .authorizationEndpoint(endpoint -> endpoint.authorizationRequestRepository(cookieRepository))
-                .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
-                .successHandler(new OAuth2AuthenticationSuccessHandler(
-                    jwtTokenProvider, redirectUriPolicy, cookieRepository))
-                .failureHandler(new OAuth2AuthenticationFailureHandler(redirectUriPolicy, cookieRepository))
-            )
-            // 필터는 빈이 아닌 직접 생성하여 서블릿 컨테이너 자동 등록(이중 실행)을 피한다.
-            .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		HttpCookieOAuth2AuthorizationRequestRepository cookieRepository = authorizationRequestRepository();
+		// 설정이 잘못되면 기동 시 실패한다(fail-fast)
+		RedirectUriPolicy redirectUriPolicy = new RedirectUriPolicy(jwtProperties);
+		http
+			.csrf(AbstractHttpConfigurer::disable)
+			.cors(cors -> cors.configurationSource(corsConfigurationSource))
+			.formLogin(AbstractHttpConfigurer::disable)
+			.httpBasic(AbstractHttpConfigurer::disable)
+			.logout(AbstractHttpConfigurer::disable)
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
+			.authorizeHttpRequests(auth -> auth
+				.requestMatchers("/api/auth/me").authenticated()
+				// 추후 권한 제어 시 /api/tracks/** 등 경로별 규칙을 anyRequest() 앞에 둔다.
+				.anyRequest().permitAll()
+			)
+			// /oauth2/**, /login/oauth2/**는 anyRequest().permitAll()에 포함된다.
+			// oauth2Login 추가 후에도 EntryPoint는 위에서 명시한 401 JSON을 유지한다(회귀 테스트로 확인).
+			.oauth2Login(oauth2 -> oauth2
+				.authorizationEndpoint(endpoint -> endpoint.authorizationRequestRepository(cookieRepository))
+				.userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
+				.successHandler(new OAuth2AuthenticationSuccessHandler(
+					jwtTokenProvider, redirectUriPolicy, cookieRepository))
+				.failureHandler(new OAuth2AuthenticationFailureHandler(redirectUriPolicy, cookieRepository))
+			)
+			// 필터는 빈이 아닌 직접 생성하여 서블릿 컨테이너 자동 등록(이중 실행)을 피한다.
+			.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+		return http.build();
+	}
 }

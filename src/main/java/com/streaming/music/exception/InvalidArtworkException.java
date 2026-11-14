@@ -5,15 +5,15 @@ package com.streaming.music.exception;
  */
 public class InvalidArtworkException extends BusinessException {
 
-    public InvalidArtworkException() {
-        super(ErrorCode.INVALID_ARTWORK);
-    }
+	public InvalidArtworkException() {
+		super(ErrorCode.INVALID_ARTWORK);
+	}
 
-    public InvalidArtworkException(String message) {
-        super(ErrorCode.INVALID_ARTWORK, message);
-    }
+	public InvalidArtworkException(String message) {
+		super(ErrorCode.INVALID_ARTWORK, message);
+	}
 
-    public InvalidArtworkException(String message, Throwable cause) {
-        super(ErrorCode.INVALID_ARTWORK, message, cause);
-    }
+	public InvalidArtworkException(String message, Throwable cause) {
+		super(ErrorCode.INVALID_ARTWORK, message, cause);
+	}
 }

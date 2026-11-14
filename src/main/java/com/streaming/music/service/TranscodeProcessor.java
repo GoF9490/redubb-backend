@@ -10,5 +10,5 @@ import com.streaming.music.dto.event.TranscodeEventDto;
  */
 public interface TranscodeProcessor {
 
-    void process(TranscodeEventDto dto);
+	void process(TranscodeEventDto dto);
 }

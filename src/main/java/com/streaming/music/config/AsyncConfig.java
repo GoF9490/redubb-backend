@@ -20,21 +20,21 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class AsyncConfig {
 
-    /** 변환 전용 executor 빈 이름. {@code @Async("transcodeExecutor")}에서 참조한다. */
-    public static final String TRANSCODE_EXECUTOR = "transcodeExecutor";
+	/** 변환 전용 executor 빈 이름. {@code @Async("transcodeExecutor")}에서 참조한다. */
+	public static final String TRANSCODE_EXECUTOR = "transcodeExecutor";
 
-    public static final int CORE_POOL_SIZE = 1;
-    public static final int MAX_POOL_SIZE = 2;
-    public static final int QUEUE_CAPACITY = 50;
-    public static final String THREAD_NAME_PREFIX = "transcode-";
+	public static final int CORE_POOL_SIZE = 1;
+	public static final int MAX_POOL_SIZE = 2;
+	public static final int QUEUE_CAPACITY = 50;
+	public static final String THREAD_NAME_PREFIX = "transcode-";
 
-    @Bean(name = TRANSCODE_EXECUTOR)
-    public ThreadPoolTaskExecutor transcodeExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(CORE_POOL_SIZE);
-        executor.setMaxPoolSize(MAX_POOL_SIZE);
-        executor.setQueueCapacity(QUEUE_CAPACITY);
-        executor.setThreadNamePrefix(THREAD_NAME_PREFIX);
-        return executor;
-    }
+	@Bean(name = TRANSCODE_EXECUTOR)
+	public ThreadPoolTaskExecutor transcodeExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(CORE_POOL_SIZE);
+		executor.setMaxPoolSize(MAX_POOL_SIZE);
+		executor.setQueueCapacity(QUEUE_CAPACITY);
+		executor.setThreadNamePrefix(THREAD_NAME_PREFIX);
+		return executor;
+	}
 }

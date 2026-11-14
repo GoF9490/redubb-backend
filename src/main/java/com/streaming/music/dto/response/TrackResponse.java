@@ -13,33 +13,33 @@ import java.util.UUID;
  * artworkUrl은 {@link MediaUrlResolver}를 경유해 조립한다.
  */
 public record TrackResponse(
-        UUID trackId,
-        String title,
-        String artist,
-        String album,
-        int durationSeconds,
-        TrackStatus status,
-        String artworkUrl,
-        String originalFilename,
-        String fileExtension,
-        long fileSizeBytes,
-        Instant createdAt
+		UUID trackId,
+		String title,
+		String artist,
+		String album,
+		int durationSeconds,
+		TrackStatus status,
+		String artworkUrl,
+		String originalFilename,
+		String fileExtension,
+		long fileSizeBytes,
+		Instant createdAt
 ) {
 
-    /** 엔티티를 응답 DTO로 변환한다. 목록·상세 응답에서도 재사용한다. */
-    public static TrackResponse from(Track track, MediaUrlResolver mediaUrlResolver) {
-        return new TrackResponse(
-                track.getTrackId(),
-                track.getTitle(),
-                track.getArtist(),
-                track.getAlbum(),
-                track.getDurationSeconds(),
-                track.getStatus(),
-                mediaUrlResolver.resolveArtworkUrl(track),
-                track.getOriginalFilename(),
-                track.getFileExtension(),
-                track.getFileSizeBytes(),
-                track.getCreatedAt()
-        );
-    }
+	/** 엔티티를 응답 DTO로 변환한다. 목록·상세 응답에서도 재사용한다. */
+	public static TrackResponse from(Track track, MediaUrlResolver mediaUrlResolver) {
+		return new TrackResponse(
+				track.getTrackId(),
+				track.getTitle(),
+				track.getArtist(),
+				track.getAlbum(),
+				track.getDurationSeconds(),
+				track.getStatus(),
+				mediaUrlResolver.resolveArtworkUrl(track),
+				track.getOriginalFilename(),
+				track.getFileExtension(),
+				track.getFileSizeBytes(),
+				track.getCreatedAt()
+		);
+	}
 }

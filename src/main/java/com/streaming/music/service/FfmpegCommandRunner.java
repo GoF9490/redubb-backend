@@ -7,10 +7,10 @@ import java.nio.file.Path;
  */
 public interface FfmpegCommandRunner {
 
-    /**
-     * 입력 음원을 AAC 192k 6초 단위 HLS(index.m3u8, chunk_%03d.ts)로 변환한다.
-     * 출력 디렉터리는 호출자가 미리 생성해야 한다.
-     * 비정상 종료, 타임아웃, 실행 실패는 예외 대신 결과 타입으로 반환한다.
-     */
-    FfmpegResult transcodeToHls(Path inputFile, Path outputDir);
+	/**
+	 * 입력 음원을 AAC 192k 6초 단위 HLS(index.m3u8, chunk_%03d.ts)로 변환한다.
+	 * 출력 디렉터리는 호출자가 미리 생성해야 한다.
+	 * 비정상 종료, 타임아웃, 실행 실패는 예외 대신 결과 타입으로 반환한다.
+	 */
+	FfmpegResult transcodeToHls(Path inputFile, Path outputDir);
 }

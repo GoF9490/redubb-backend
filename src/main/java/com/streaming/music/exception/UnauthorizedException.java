@@ -5,11 +5,11 @@ package com.streaming.music.exception;
  */
 public class UnauthorizedException extends BusinessException {
 
-    public UnauthorizedException() {
-        super(ErrorCode.UNAUTHORIZED);
-    }
+	public UnauthorizedException() {
+		super(ErrorCode.UNAUTHORIZED);
+	}
 
-    public UnauthorizedException(String message) {
-        super(ErrorCode.UNAUTHORIZED, message);
-    }
+	public UnauthorizedException(String message) {
+		super(ErrorCode.UNAUTHORIZED, message);
+	}
 }

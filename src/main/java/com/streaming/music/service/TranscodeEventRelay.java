@@ -22,18 +22,18 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class TranscodeEventRelay {
 
-    private final TranscodeProcessor processor;
-    private final TranscodeRejectionHandler rejectionHandler;
+	private final TranscodeProcessor processor;
+	private final TranscodeRejectionHandler rejectionHandler;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void relayTranscode(TranscodeEventDto dto) {
-        try {
-            processor.process(dto);
-        } catch (TaskRejectedException e) {
-            log.warn("변환 큐가 가득 차 작업이 거부되었습니다. trackId={}", dto.trackId());
-            rejectionHandler.markQueueFull(dto.trackId());
-        } catch (RuntimeException e) {
-            log.error("변환 작업 제출 중 예외가 발생했습니다. trackId={}", dto.trackId(), e);
-        }
-    }
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void relayTranscode(TranscodeEventDto dto) {
+		try {
+			processor.process(dto);
+		} catch (TaskRejectedException e) {
+			log.warn("변환 큐가 가득 차 작업이 거부되었습니다. trackId={}", dto.trackId());
+			rejectionHandler.markQueueFull(dto.trackId());
+		} catch (RuntimeException e) {
+			log.error("변환 작업 제출 중 예외가 발생했습니다. trackId={}", dto.trackId(), e);
+		}
+	}
 }

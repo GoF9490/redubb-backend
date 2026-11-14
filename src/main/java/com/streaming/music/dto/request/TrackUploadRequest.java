@@ -12,10 +12,10 @@ import org.springframework.web.multipart.MultipartFile;
  * @param artworkFile 사용자가 직접 첨부한 앨범자켓 (선택, JPEG/PNG)
  */
 public record TrackUploadRequest(
-        MultipartFile file,
-        String title,
-        String artist,
-        String album,
-        MultipartFile artworkFile
+		MultipartFile file,
+		String title,
+		String artist,
+		String album,
+		MultipartFile artworkFile
 ) {
 }

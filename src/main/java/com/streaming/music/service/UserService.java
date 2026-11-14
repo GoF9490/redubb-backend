@@ -24,40 +24,40 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class UserService {
 
-    private final UserRepository userRepository;
-    private final Clock clock;
+	private final UserRepository userRepository;
+	private final Clock clock;
 
-    /**
-     * userId로 회원을 조회한다. 존재하지 않으면(삭제된 회원 등) 401 처리용 예외를 던진다.
-     */
-    public User getUser(Long userId) {
-        return userRepository.findById(userId).orElseThrow(UnauthorizedException::new);
-    }
+	/**
+	 * userId로 회원을 조회한다. 존재하지 않으면(삭제된 회원 등) 401 처리용 예외를 던진다.
+	 */
+	public User getUser(Long userId) {
+		return userRepository.findById(userId).orElseThrow(UnauthorizedException::new);
+	}
 
-    /**
-     * providerId(sub) 기준으로 회원을 갱신하거나, 없으면 신규 생성한다.
-     */
-    public User upsertUser(OAuth2UserInfo info) {
-        Objects.requireNonNull(info, "info");
-        Objects.requireNonNull(info.providerId(), "providerId");
-        Objects.requireNonNull(info.email(), "email");
+	/**
+	 * providerId(sub) 기준으로 회원을 갱신하거나, 없으면 신규 생성한다.
+	 */
+	public User upsertUser(OAuth2UserInfo info) {
+		Objects.requireNonNull(info, "info");
+		Objects.requireNonNull(info.providerId(), "providerId");
+		Objects.requireNonNull(info.email(), "email");
 
-        Instant now = Instant.now(clock);
-        return userRepository.findByProviderId(info.providerId())
-                .map(user -> {
-                    // 영속 상태이므로 변경 감지로 반영된다 (save 불필요)
-                    user.updateProfile(info.email(), info.profileImageUrl());
-                    user.updateLastLogin(now);
-                    return user;
-                })
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .provider(User.PROVIDER_GOOGLE)
-                        .providerId(info.providerId())
-                        .email(info.email())
-                        .profileImageUrl(info.profileImageUrl())
-                        .role(User.ROLE_USER)
-                        .createdAt(now)
-                        .lastLoginAt(now)
-                        .build()));
-    }
+		Instant now = Instant.now(clock);
+		return userRepository.findByProviderId(info.providerId())
+				.map(user -> {
+					// 영속 상태이므로 변경 감지로 반영된다 (save 불필요)
+					user.updateProfile(info.email(), info.profileImageUrl());
+					user.updateLastLogin(now);
+					return user;
+				})
+				.orElseGet(() -> userRepository.save(User.builder()
+						.provider(User.PROVIDER_GOOGLE)
+						.providerId(info.providerId())
+						.email(info.email())
+						.profileImageUrl(info.profileImageUrl())
+						.role(User.ROLE_USER)
+						.createdAt(now)
+						.lastLoginAt(now)
+						.build()));
+	}
 }

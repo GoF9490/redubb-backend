@@ -5,15 +5,15 @@ package com.streaming.music.exception;
  */
 public class InvalidRequestException extends BusinessException {
 
-    public InvalidRequestException() {
-        super(ErrorCode.INVALID_REQUEST);
-    }
+	public InvalidRequestException() {
+		super(ErrorCode.INVALID_REQUEST);
+	}
 
-    public InvalidRequestException(String message) {
-        super(ErrorCode.INVALID_REQUEST, message);
-    }
+	public InvalidRequestException(String message) {
+		super(ErrorCode.INVALID_REQUEST, message);
+	}
 
-    public InvalidRequestException(String message, Throwable cause) {
-        super(ErrorCode.INVALID_REQUEST, message, cause);
-    }
+	public InvalidRequestException(String message, Throwable cause) {
+		super(ErrorCode.INVALID_REQUEST, message, cause);
+	}
 }

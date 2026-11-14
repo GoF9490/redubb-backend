@@ -22,90 +22,90 @@ import java.util.UUID;
  */
 final class ContentDispositionBuilder {
 
-    static final int FILENAME_MAX_LENGTH = 255;
+	static final int FILENAME_MAX_LENGTH = 255;
 
-    private static final String ATTR_CHAR_SYMBOLS = "!#$&+-.^_`|~";
-    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+	private static final String ATTR_CHAR_SYMBOLS = "!#$&+-.^_`|~";
+	private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
-    private ContentDispositionBuilder() {
-    }
+	private ContentDispositionBuilder() {
+	}
 
-    static String build(String originalFilename, UUID trackId, String fileExtension) {
-        String extensionPart = fileExtension == null || sanitizeExtension(fileExtension).isEmpty()
-                ? "" : "." + sanitizeExtension(fileExtension);
-        String defaultName = "track-" + trackId + extensionPart;
-        String name = sanitizeFilename(originalFilename);
-        if (name.isEmpty()) {
-            name = defaultName;
-        }
-        String asciiName = toAsciiFallback(name);
-        if (!hasMeaningfulStem(asciiName)) {
-            asciiName = defaultName;
-        }
-        return "attachment; filename=\"" + asciiName + "\"; filename*=UTF-8''" + encodeRfc5987(name);
-    }
+	static String build(String originalFilename, UUID trackId, String fileExtension) {
+		String extensionPart = fileExtension == null || sanitizeExtension(fileExtension).isEmpty()
+				? "" : "." + sanitizeExtension(fileExtension);
+		String defaultName = "track-" + trackId + extensionPart;
+		String name = sanitizeFilename(originalFilename);
+		if (name.isEmpty()) {
+			name = defaultName;
+		}
+		String asciiName = toAsciiFallback(name);
+		if (!hasMeaningfulStem(asciiName)) {
+			asciiName = defaultName;
+		}
+		return "attachment; filename=\"" + asciiName + "\"; filename*=UTF-8''" + encodeRfc5987(name);
+	}
 
-    private static String sanitizeExtension(String extension) {
-        return extension.replaceAll("[^A-Za-z0-9]", "");
-    }
+	private static String sanitizeExtension(String extension) {
+		return extension.replaceAll("[^A-Za-z0-9]", "");
+	}
 
-    private static String sanitizeFilename(String filename) {
-        if (filename == null) {
-            return "";
-        }
-        StringBuilder builder = new StringBuilder(filename.length());
-        for (int i = 0; i < filename.length(); i++) {
-            char c = filename.charAt(i);
-            if (c >= 0x20 && c != 0x7F) {
-                builder.append(c);
-            }
-        }
-        String name = builder.toString();
-        name = name.substring(Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\')) + 1).strip();
-        if (name.length() > FILENAME_MAX_LENGTH) {
-            name = name.substring(0, FILENAME_MAX_LENGTH);
-        }
-        return name;
-    }
+	private static String sanitizeFilename(String filename) {
+		if (filename == null) {
+			return "";
+		}
+		StringBuilder builder = new StringBuilder(filename.length());
+		for (int i = 0; i < filename.length(); i++) {
+			char c = filename.charAt(i);
+			if (c >= 0x20 && c != 0x7F) {
+				builder.append(c);
+			}
+		}
+		String name = builder.toString();
+		name = name.substring(Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\')) + 1).strip();
+		if (name.length() > FILENAME_MAX_LENGTH) {
+			name = name.substring(0, FILENAME_MAX_LENGTH);
+		}
+		return name;
+	}
 
-    private static String toAsciiFallback(String name) {
-        StringBuilder builder = new StringBuilder(name.length());
-        for (int i = 0; i < name.length(); i++) {
-            char c = name.charAt(i);
-            boolean safe = c >= 0x20 && c <= 0x7E && c != '"' && c != '\\' && c != ';' && c != '%';
-            builder.append(safe ? c : '_');
-        }
-        return builder.toString();
-    }
+	private static String toAsciiFallback(String name) {
+		StringBuilder builder = new StringBuilder(name.length());
+		for (int i = 0; i < name.length(); i++) {
+			char c = name.charAt(i);
+			boolean safe = c >= 0x20 && c <= 0x7E && c != '"' && c != '\\' && c != ';' && c != '%';
+			builder.append(safe ? c : '_');
+		}
+		return builder.toString();
+	}
 
-    /** 마지막 '.' 앞 본문에 영문·숫자가 하나라도 있는지 확인한다(점으로 시작하는 이름은 전체를 본문으로 본다). */
-    private static boolean hasMeaningfulStem(String asciiName) {
-        int dot = asciiName.lastIndexOf('.');
-        String stem = dot > 0 ? asciiName.substring(0, dot) : asciiName;
-        for (int i = 0; i < stem.length(); i++) {
-            char c = stem.charAt(i);
-            if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
-                return true;
-            }
-        }
-        return false;
-    }
+	/** 마지막 '.' 앞 본문에 영문·숫자가 하나라도 있는지 확인한다(점으로 시작하는 이름은 전체를 본문으로 본다). */
+	private static boolean hasMeaningfulStem(String asciiName) {
+		int dot = asciiName.lastIndexOf('.');
+		String stem = dot > 0 ? asciiName.substring(0, dot) : asciiName;
+		for (int i = 0; i < stem.length(); i++) {
+			char c = stem.charAt(i);
+			if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+				return true;
+			}
+		}
+		return false;
+	}
 
-    private static String encodeRfc5987(String value) {
-        StringBuilder builder = new StringBuilder();
-        for (byte b : value.getBytes(StandardCharsets.UTF_8)) {
-            int unsigned = b & 0xFF;
-            if (isAttrChar(unsigned)) {
-                builder.append((char) unsigned);
-            } else {
-                builder.append('%').append(HEX[unsigned >> 4]).append(HEX[unsigned & 0x0F]);
-            }
-        }
-        return builder.toString();
-    }
+	private static String encodeRfc5987(String value) {
+		StringBuilder builder = new StringBuilder();
+		for (byte b : value.getBytes(StandardCharsets.UTF_8)) {
+			int unsigned = b & 0xFF;
+			if (isAttrChar(unsigned)) {
+				builder.append((char) unsigned);
+			} else {
+				builder.append('%').append(HEX[unsigned >> 4]).append(HEX[unsigned & 0x0F]);
+			}
+		}
+		return builder.toString();
+	}
 
-    private static boolean isAttrChar(int c) {
-        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
-                || (c < 0x80 && ATTR_CHAR_SYMBOLS.indexOf(c) >= 0);
-    }
+	private static boolean isAttrChar(int c) {
+		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+				|| (c < 0x80 && ATTR_CHAR_SYMBOLS.indexOf(c) >= 0);
+	}
 }

@@ -12,10 +12,10 @@ import com.streaming.music.dto.event.TranscodeEventDto;
  */
 public interface TranscodeTaskDispatcher {
 
-    /**
-     * 변환 요청 이벤트를 발행한다.
-     *
-     * @param dto 변환 대상 정보 (null 불가)
-     */
-    void dispatch(TranscodeEventDto dto);
+	/**
+	 * 변환 요청 이벤트를 발행한다.
+	 *
+	 * @param dto 변환 대상 정보 (null 불가)
+	 */
+	void dispatch(TranscodeEventDto dto);
 }

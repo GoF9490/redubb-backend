@@ -41,47 +41,47 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class PlaybackLogService {
 
-    private final PlaybackLogRepository playbackLogRepository;
-    private final UserRepository userRepository;
-    private final Clock clock;
-    private final TransactionTemplate transactionTemplate;
+	private final PlaybackLogRepository playbackLogRepository;
+	private final UserRepository userRepository;
+	private final Clock clock;
+	private final TransactionTemplate transactionTemplate;
 
-    public PlaybackLogService(PlaybackLogRepository playbackLogRepository,
-                              UserRepository userRepository,
-                              Clock clock,
-                              PlatformTransactionManager transactionManager) {
-        this.playbackLogRepository = playbackLogRepository;
-        this.userRepository = userRepository;
-        this.clock = clock;
-        this.transactionTemplate = new TransactionTemplate(transactionManager);
-        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-    }
+	public PlaybackLogService(PlaybackLogRepository playbackLogRepository,
+			UserRepository userRepository,
+			Clock clock,
+			PlatformTransactionManager transactionManager) {
+		this.playbackLogRepository = playbackLogRepository;
+		this.userRepository = userRepository;
+		this.clock = clock;
+		this.transactionTemplate = new TransactionTemplate(transactionManager);
+		this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+	}
 
-    /**
-     * 이력 1건을 저장한다. 저장 중 RuntimeException은 전파하지 않는다.
-     *
-     * @param track      대상 트랙 (필수)
-     * @param userId     로그인 사용자 ID, 비로그인이면 null
-     * @param actionType STREAM 또는 DOWNLOAD (필수)
-     */
-    public void recordLog(Track track, Long userId, ActionType actionType) {
-        // 프로그래밍 오류는 삼키지 않고 즉시 드러낸다
-        Objects.requireNonNull(track, "track");
-        Objects.requireNonNull(actionType, "actionType");
+	/**
+	 * 이력 1건을 저장한다. 저장 중 RuntimeException은 전파하지 않는다.
+	 *
+	 * @param track      대상 트랙 (필수)
+	 * @param userId     로그인 사용자 ID, 비로그인이면 null
+	 * @param actionType STREAM 또는 DOWNLOAD (필수)
+	 */
+	public void recordLog(Track track, Long userId, ActionType actionType) {
+		// 프로그래밍 오류는 삼키지 않고 즉시 드러낸다
+		Objects.requireNonNull(track, "track");
+		Objects.requireNonNull(actionType, "actionType");
 
-        try {
-            transactionTemplate.executeWithoutResult(status -> {
-                User user = (userId != null) ? userRepository.getReferenceById(userId) : null;
-                playbackLogRepository.save(PlaybackLog.builder()
-                        .track(track)
-                        .user(user)
-                        .actionType(actionType)
-                        .createdAt(Instant.now(clock))
-                        .build());
-            });
-        } catch (RuntimeException e) {
-            log.warn("재생 이력 저장 실패 trackId={}, userId={}, actionType={}",
-                    track.getTrackId(), userId, actionType, e);
-        }
-    }
+		try {
+			transactionTemplate.executeWithoutResult(status -> {
+				User user = (userId != null) ? userRepository.getReferenceById(userId) : null;
+				playbackLogRepository.save(PlaybackLog.builder()
+						.track(track)
+						.user(user)
+						.actionType(actionType)
+						.createdAt(Instant.now(clock))
+						.build());
+			});
+		} catch (RuntimeException e) {
+			log.warn("재생 이력 저장 실패 trackId={}, userId={}, actionType={}",
+					track.getTrackId(), userId, actionType, e);
+		}
+	}
 }

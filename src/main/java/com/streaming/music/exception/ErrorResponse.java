@@ -9,14 +9,14 @@ import java.time.temporal.ChronoUnit;
  */
 public record ErrorResponse(String code, String message, OffsetDateTime timestamp) {
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
-    public static ErrorResponse of(ErrorCode errorCode, String message) {
-        return new ErrorResponse(errorCode.name(), message,
-                OffsetDateTime.now(SEOUL).truncatedTo(ChronoUnit.SECONDS));
-    }
+	public static ErrorResponse of(ErrorCode errorCode, String message) {
+		return new ErrorResponse(errorCode.name(), message,
+				OffsetDateTime.now(SEOUL).truncatedTo(ChronoUnit.SECONDS));
+	}
 
-    public static ErrorResponse of(ErrorCode errorCode) {
-        return of(errorCode, errorCode.getDefaultMessage());
-    }
+	public static ErrorResponse of(ErrorCode errorCode) {
+		return of(errorCode, errorCode.getDefaultMessage());
+	}
 }

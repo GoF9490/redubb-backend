@@ -5,15 +5,15 @@ package com.streaming.music.exception;
  */
 public class TrackNotReadyException extends BusinessException {
 
-    public TrackNotReadyException() {
-        super(ErrorCode.TRACK_NOT_READY);
-    }
+	public TrackNotReadyException() {
+		super(ErrorCode.TRACK_NOT_READY);
+	}
 
-    public TrackNotReadyException(String message) {
-        super(ErrorCode.TRACK_NOT_READY, message);
-    }
+	public TrackNotReadyException(String message) {
+		super(ErrorCode.TRACK_NOT_READY, message);
+	}
 
-    public TrackNotReadyException(String message, Throwable cause) {
-        super(ErrorCode.TRACK_NOT_READY, message, cause);
-    }
+	public TrackNotReadyException(String message, Throwable cause) {
+		super(ErrorCode.TRACK_NOT_READY, message, cause);
+	}
 }

@@ -12,26 +12,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class FfmpegCommandBuilder {
 
-    public static final String PLAYLIST_FILE_NAME = "index.m3u8";
-    public static final String SEGMENT_FILE_PATTERN = "chunk_%03d.ts";
+	public static final String PLAYLIST_FILE_NAME = "index.m3u8";
+	public static final String SEGMENT_FILE_PATTERN = "chunk_%03d.ts";
 
-    private final AudioProperties audioProperties;
+	private final AudioProperties audioProperties;
 
-    public FfmpegCommandBuilder(AudioProperties audioProperties) {
-        this.audioProperties = audioProperties;
-    }
+	public FfmpegCommandBuilder(AudioProperties audioProperties) {
+		this.audioProperties = audioProperties;
+	}
 
-    public List<String> buildHlsCommand(Path inputFile, Path outputDir) {
-        return List.of(
-                audioProperties.ffmpegPath(),
-                "-y", "-i", inputFile.toString(),
-                "-vn", "-c:a", "aac",
-                "-b:a", audioProperties.hlsAudioBitrate(),
-                "-ar", "44100", "-ac", "2",
-                "-f", "hls",
-                "-hls_time", String.valueOf(audioProperties.hlsSegmentSeconds()),
-                "-hls_list_size", "0",
-                "-hls_segment_filename", outputDir.resolve(SEGMENT_FILE_PATTERN).toString(),
-                outputDir.resolve(PLAYLIST_FILE_NAME).toString());
-    }
+	public List<String> buildHlsCommand(Path inputFile, Path outputDir) {
+		return List.of(
+				audioProperties.ffmpegPath(),
+				"-y", "-i", inputFile.toString(),
+				"-vn", "-c:a", "aac",
+				"-b:a", audioProperties.hlsAudioBitrate(),
+				"-ar", "44100", "-ac", "2",
+				"-f", "hls",
+				"-hls_time", String.valueOf(audioProperties.hlsSegmentSeconds()),
+				"-hls_list_size", "0",
+				"-hls_segment_filename", outputDir.resolve(SEGMENT_FILE_PATTERN).toString(),
+				outputDir.resolve(PLAYLIST_FILE_NAME).toString());
+	}
 }

@@ -5,15 +5,15 @@ package com.streaming.music.exception;
  */
 public class TrackNotFoundException extends BusinessException {
 
-    public TrackNotFoundException() {
-        super(ErrorCode.TRACK_NOT_FOUND);
-    }
+	public TrackNotFoundException() {
+		super(ErrorCode.TRACK_NOT_FOUND);
+	}
 
-    public TrackNotFoundException(String message) {
-        super(ErrorCode.TRACK_NOT_FOUND, message);
-    }
+	public TrackNotFoundException(String message) {
+		super(ErrorCode.TRACK_NOT_FOUND, message);
+	}
 
-    public TrackNotFoundException(String message, Throwable cause) {
-        super(ErrorCode.TRACK_NOT_FOUND, message, cause);
-    }
+	public TrackNotFoundException(String message, Throwable cause) {
+		super(ErrorCode.TRACK_NOT_FOUND, message, cause);
+	}
 }

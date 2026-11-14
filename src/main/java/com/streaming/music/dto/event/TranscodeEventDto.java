@@ -13,9 +13,9 @@ import java.util.UUID;
  */
 public record TranscodeEventDto(UUID trackId, String originalS3Key) {
 
-    public TranscodeEventDto {
-        // 비동기 스레드에서 늦게 NPE가 나지 않도록 생성 시점에 차단
-        Objects.requireNonNull(trackId, "trackId must not be null");
-        Objects.requireNonNull(originalS3Key, "originalS3Key must not be null");
-    }
+	public TranscodeEventDto {
+		// 비동기 스레드에서 늦게 NPE가 나지 않도록 생성 시점에 차단
+		Objects.requireNonNull(trackId, "trackId must not be null");
+		Objects.requireNonNull(originalS3Key, "originalS3Key must not be null");
+	}
 }

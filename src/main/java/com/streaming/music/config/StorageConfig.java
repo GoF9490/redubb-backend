@@ -12,12 +12,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class StorageConfig {
 
-    @Bean
-    public MinioClient minioClient(StorageProperties properties) {
-        return MinioClient.builder()
-                .endpoint(properties.endpoint())
-                .region(properties.region())
-                .credentials(properties.accessKey(), properties.secretKey())
-                .build();
-    }
+	@Bean
+	public MinioClient minioClient(StorageProperties properties) {
+		return MinioClient.builder()
+				.endpoint(properties.endpoint())
+				.region(properties.region())
+				.credentials(properties.accessKey(), properties.secretKey())
+				.build();
+	}
 }

@@ -18,14 +18,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserService userService;
+	private final UserService userService;
 
-    @GetMapping("/me")
-    public UserResponse getCurrentUser(@AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        // SecurityConfig가 인증을 강제하지만, 방어적으로 null이면 401 처리한다
-        if (authenticatedUser == null) {
-            throw new UnauthorizedException();
-        }
-        return UserResponse.from(userService.getUser(authenticatedUser.userId()));
-    }
+	@GetMapping("/me")
+	public UserResponse getCurrentUser(@AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
+		// SecurityConfig가 인증을 강제하지만, 방어적으로 null이면 401 처리한다
+		if (authenticatedUser == null) {
+			throw new UnauthorizedException();
+		}
+		return UserResponse.from(userService.getUser(authenticatedUser.userId()));
+	}
 }

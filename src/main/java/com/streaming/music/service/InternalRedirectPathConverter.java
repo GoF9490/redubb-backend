@@ -12,31 +12,31 @@ package com.streaming.music.service;
  */
 final class InternalRedirectPathConverter {
 
-    static final String INTERNAL_PREFIX = "/internal-storage/";
+	static final String INTERNAL_PREFIX = "/internal-storage/";
 
-    private InternalRedirectPathConverter() {
-    }
+	private InternalRedirectPathConverter() {
+	}
 
-    /**
-     * @param presignedUrl presigned GET URL 전체
-     * @param bucketName   버킷 이름 (경로 첫 세그먼트)
-     * @return {@code /internal-storage/{key}?{원본 쿼리}}
-     */
-    static String toInternalRedirectUri(String presignedUrl, String bucketName) {
-        if (presignedUrl == null) {
-            throw new IllegalStateException("presigned URL이 비어 있습니다.");
-        }
-        int schemeEnd = presignedUrl.indexOf("://");
-        int pathStart = schemeEnd < 0 ? -1 : presignedUrl.indexOf('/', schemeEnd + 3);
-        int queryStart = presignedUrl.indexOf('?');
-        if (pathStart < 0 || queryStart < pathStart) {
-            throw new IllegalStateException("presigned URL 형식이 예상과 다릅니다.");
-        }
-        String path = presignedUrl.substring(pathStart, queryStart);
-        String bucketPrefix = "/" + bucketName + "/";
-        if (!path.startsWith(bucketPrefix) || path.length() == bucketPrefix.length()) {
-            throw new IllegalStateException("presigned URL 경로가 버킷 접두와 일치하지 않습니다.");
-        }
-        return INTERNAL_PREFIX + path.substring(bucketPrefix.length()) + presignedUrl.substring(queryStart);
-    }
+	/**
+	 * @param presignedUrl presigned GET URL 전체
+	 * @param bucketName   버킷 이름 (경로 첫 세그먼트)
+	 * @return {@code /internal-storage/{key}?{원본 쿼리}}
+	 */
+	static String toInternalRedirectUri(String presignedUrl, String bucketName) {
+		if (presignedUrl == null) {
+			throw new IllegalStateException("presigned URL이 비어 있습니다.");
+		}
+		int schemeEnd = presignedUrl.indexOf("://");
+		int pathStart = schemeEnd < 0 ? -1 : presignedUrl.indexOf('/', schemeEnd + 3);
+		int queryStart = presignedUrl.indexOf('?');
+		if (pathStart < 0 || queryStart < pathStart) {
+			throw new IllegalStateException("presigned URL 형식이 예상과 다릅니다.");
+		}
+		String path = presignedUrl.substring(pathStart, queryStart);
+		String bucketPrefix = "/" + bucketName + "/";
+		if (!path.startsWith(bucketPrefix) || path.length() == bucketPrefix.length()) {
+			throw new IllegalStateException("presigned URL 경로가 버킷 접두와 일치하지 않습니다.");
+		}
+		return INTERNAL_PREFIX + path.substring(bucketPrefix.length()) + presignedUrl.substring(queryStart);
+	}
 }

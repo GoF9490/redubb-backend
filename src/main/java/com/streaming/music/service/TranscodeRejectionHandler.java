@@ -20,32 +20,32 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Component
 public class TranscodeRejectionHandler {
 
-    public static final String QUEUE_FULL_MESSAGE = "TRANSCODE_QUEUE_FULL";
+	public static final String QUEUE_FULL_MESSAGE = "TRANSCODE_QUEUE_FULL";
 
-    private final TrackRepository trackRepository;
-    private final TransactionTemplate requiresNewTemplate;
+	private final TrackRepository trackRepository;
+	private final TransactionTemplate requiresNewTemplate;
 
-    public TranscodeRejectionHandler(TrackRepository trackRepository,
-                                     PlatformTransactionManager transactionManager) {
-        this.trackRepository = trackRepository;
-        this.requiresNewTemplate = new TransactionTemplate(transactionManager);
-        this.requiresNewTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-    }
+	public TranscodeRejectionHandler(TrackRepository trackRepository,
+			PlatformTransactionManager transactionManager) {
+		this.trackRepository = trackRepository;
+		this.requiresNewTemplate = new TransactionTemplate(transactionManager);
+		this.requiresNewTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+	}
 
-    public void markQueueFull(UUID trackId) {
-        try {
-            requiresNewTemplate.executeWithoutResult(status -> {
-                Optional<Track> found = trackRepository.findById(trackId);
-                if (found.isEmpty()) {
-                    log.warn("큐 포화 처리 대상 트랙이 없습니다. trackId={}", trackId);
-                    return;
-                }
-                Track track = found.get();
-                track.markFailed(QUEUE_FULL_MESSAGE);
-                trackRepository.save(track);
-            });
-        } catch (Exception e) {
-            log.error("큐 포화 트랙 FAILED 갱신에 실패했습니다. trackId={}", trackId, e);
-        }
-    }
+	public void markQueueFull(UUID trackId) {
+		try {
+			requiresNewTemplate.executeWithoutResult(status -> {
+				Optional<Track> found = trackRepository.findById(trackId);
+				if (found.isEmpty()) {
+					log.warn("큐 포화 처리 대상 트랙이 없습니다. trackId={}", trackId);
+					return;
+				}
+				Track track = found.get();
+				track.markFailed(QUEUE_FULL_MESSAGE);
+				trackRepository.save(track);
+			});
+		} catch (Exception e) {
+			log.error("큐 포화 트랙 FAILED 갱신에 실패했습니다. trackId={}", trackId, e);
+		}
+	}
 }

@@ -39,193 +39,193 @@ import java.util.Set;
  */
 @Slf4j
 public class HttpCookieOAuth2AuthorizationRequestRepository
-        implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
+		implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
-    public static final String AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
-    public static final String REDIRECT_URI_COOKIE_NAME = "oauth2_redirect_uri";
-    public static final String REDIRECT_URI_PARAM_NAME = "redirect_uri";
+	public static final String AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
+	public static final String REDIRECT_URI_COOKIE_NAME = "oauth2_redirect_uri";
+	public static final String REDIRECT_URI_PARAM_NAME = "redirect_uri";
 
-    static final int COOKIE_MAX_AGE_SECONDS = 180;
-    static final int MAX_COOKIE_VALUE_LENGTH = 3072;
-    static final int MAX_REDIRECT_URI_LENGTH = 512;
+	static final int COOKIE_MAX_AGE_SECONDS = 180;
+	static final int MAX_COOKIE_VALUE_LENGTH = 3072;
+	static final int MAX_REDIRECT_URI_LENGTH = 512;
 
-    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+	private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
-    /** 쿠키에 저장할 인가 요청 필드. grantType/responseType은 고정값이라 저장하지 않는다. */
-    record StoredAuthorizationRequest(
-            String authorizationUri,
-            String clientId,
-            String redirectUri,
-            Set<String> scopes,
-            String state,
-            Map<String, String> additionalParameters,
-            Map<String, String> attributes,
-            String authorizationRequestUri
-    ) {
-    }
+	/** 쿠키에 저장할 인가 요청 필드. grantType/responseType은 고정값이라 저장하지 않는다. */
+	record StoredAuthorizationRequest(
+			String authorizationUri,
+			String clientId,
+			String redirectUri,
+			Set<String> scopes,
+			String state,
+			Map<String, String> additionalParameters,
+			Map<String, String> attributes,
+			String authorizationRequestUri
+	) {
+	}
 
-    @Override
-    public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
-        return findCookieValue(request, AUTHORIZATION_REQUEST_COOKIE_NAME)
-                .map(this::deserializeAuthorizationRequest)
-                .orElse(null);
-    }
+	@Override
+	public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
+		return findCookieValue(request, AUTHORIZATION_REQUEST_COOKIE_NAME)
+				.map(this::deserializeAuthorizationRequest)
+				.orElse(null);
+	}
 
-    @Override
-    public void saveAuthorizationRequest(OAuth2AuthorizationRequest authorizationRequest,
-                                         HttpServletRequest request, HttpServletResponse response) {
-        if (authorizationRequest == null) {
-            removeAuthorizationRequestCookies(request, response);
-            return;
-        }
+	@Override
+	public void saveAuthorizationRequest(OAuth2AuthorizationRequest authorizationRequest,
+			HttpServletRequest request, HttpServletResponse response) {
+		if (authorizationRequest == null) {
+			removeAuthorizationRequestCookies(request, response);
+			return;
+		}
 
-        String serialized = serializeAuthorizationRequest(authorizationRequest);
-        if (serialized == null || serialized.length() > MAX_COOKIE_VALUE_LENGTH) {
-            log.warn("OAuth2 인가 요청 쿠키를 저장하지 못했습니다: 직렬화 실패 또는 크기 초과");
-            removeAuthorizationRequestCookies(request, response);
-            return;
-        }
-        addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, serialized, COOKIE_MAX_AGE_SECONDS);
+		String serialized = serializeAuthorizationRequest(authorizationRequest);
+		if (serialized == null || serialized.length() > MAX_COOKIE_VALUE_LENGTH) {
+			log.warn("OAuth2 인가 요청 쿠키를 저장하지 못했습니다: 직렬화 실패 또는 크기 초과");
+			removeAuthorizationRequestCookies(request, response);
+			return;
+		}
+		addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, serialized, COOKIE_MAX_AGE_SECONDS);
 
-        String redirectUri = request.getParameter(REDIRECT_URI_PARAM_NAME);
-        if (redirectUri == null || redirectUri.isBlank() || redirectUri.length() > MAX_REDIRECT_URI_LENGTH) {
-            // 값이 없거나 비정상이면 쿠키를 만들지 않는다(이전 쿠키가 남지 않도록 삭제만 지시)
-            addCookie(response, request, REDIRECT_URI_COOKIE_NAME, "", 0);
-            return;
-        }
-        addCookie(response, request, REDIRECT_URI_COOKIE_NAME, encode(redirectUri), COOKIE_MAX_AGE_SECONDS);
-    }
+		String redirectUri = request.getParameter(REDIRECT_URI_PARAM_NAME);
+		if (redirectUri == null || redirectUri.isBlank() || redirectUri.length() > MAX_REDIRECT_URI_LENGTH) {
+			// 값이 없거나 비정상이면 쿠키를 만들지 않는다(이전 쿠키가 남지 않도록 삭제만 지시)
+			addCookie(response, request, REDIRECT_URI_COOKIE_NAME, "", 0);
+			return;
+		}
+		addCookie(response, request, REDIRECT_URI_COOKIE_NAME, encode(redirectUri), COOKIE_MAX_AGE_SECONDS);
+	}
 
-    /** 요청을 반환하고 인가 요청 쿠키만 삭제한다. redirect_uri 쿠키는 성공/실패 핸들러가 읽은 뒤 삭제한다. */
-    @Override
-    public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request,
-                                                                 HttpServletResponse response) {
-        OAuth2AuthorizationRequest authorizationRequest = loadAuthorizationRequest(request);
-        addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, "", 0);
-        return authorizationRequest;
-    }
+	/** 요청을 반환하고 인가 요청 쿠키만 삭제한다. redirect_uri 쿠키는 성공/실패 핸들러가 읽은 뒤 삭제한다. */
+	@Override
+	public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request,
+			HttpServletResponse response) {
+		OAuth2AuthorizationRequest authorizationRequest = loadAuthorizationRequest(request);
+		addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, "", 0);
+		return authorizationRequest;
+	}
 
-    /** 인가 요청·redirect_uri 쿠키를 모두 삭제한다(T6-5 핸들러에서 호출). */
-    public void removeAuthorizationRequestCookies(HttpServletRequest request, HttpServletResponse response) {
-        addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, "", 0);
-        addCookie(response, request, REDIRECT_URI_COOKIE_NAME, "", 0);
-    }
+	/** 인가 요청·redirect_uri 쿠키를 모두 삭제한다(T6-5 핸들러에서 호출). */
+	public void removeAuthorizationRequestCookies(HttpServletRequest request, HttpServletResponse response) {
+		addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, "", 0);
+		addCookie(response, request, REDIRECT_URI_COOKIE_NAME, "", 0);
+	}
 
-    /** redirect_uri 쿠키의 원문을 복원한다. 쿠키가 없거나 손상되었으면 빈 값을 반환한다. */
-    public Optional<String> loadRedirectUri(HttpServletRequest request) {
-        return findCookieValue(request, REDIRECT_URI_COOKIE_NAME)
-                .filter(value -> value.length() <= MAX_COOKIE_VALUE_LENGTH)
-                .map(value -> {
-                    try {
-                        String decoded = new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
-                        return decoded.isBlank() || decoded.length() > MAX_REDIRECT_URI_LENGTH ? null : decoded;
-                    } catch (IllegalArgumentException e) {
-                        log.warn("redirect_uri 쿠키 디코딩 실패");
-                        return null;
-                    }
-                });
-    }
+	/** redirect_uri 쿠키의 원문을 복원한다. 쿠키가 없거나 손상되었으면 빈 값을 반환한다. */
+	public Optional<String> loadRedirectUri(HttpServletRequest request) {
+		return findCookieValue(request, REDIRECT_URI_COOKIE_NAME)
+				.filter(value -> value.length() <= MAX_COOKIE_VALUE_LENGTH)
+				.map(value -> {
+					try {
+						String decoded = new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
+						return decoded.isBlank() || decoded.length() > MAX_REDIRECT_URI_LENGTH ? null : decoded;
+					} catch (IllegalArgumentException e) {
+						log.warn("redirect_uri 쿠키 디코딩 실패");
+						return null;
+					}
+				});
+	}
 
-    private String serializeAuthorizationRequest(OAuth2AuthorizationRequest authorizationRequest) {
-        try {
-            StoredAuthorizationRequest stored = new StoredAuthorizationRequest(
-                    authorizationRequest.getAuthorizationUri(),
-                    authorizationRequest.getClientId(),
-                    authorizationRequest.getRedirectUri(),
-                    new LinkedHashSet<>(authorizationRequest.getScopes()),
-                    authorizationRequest.getState(),
-                    toStringMap(authorizationRequest.getAdditionalParameters()),
-                    toStringMap(authorizationRequest.getAttributes()),
-                    authorizationRequest.getAuthorizationRequestUri()
-            );
-            return encode(JSON_MAPPER.writeValueAsString(stored));
-        } catch (Exception e) {
-            return null;
-        }
-    }
+	private String serializeAuthorizationRequest(OAuth2AuthorizationRequest authorizationRequest) {
+		try {
+			StoredAuthorizationRequest stored = new StoredAuthorizationRequest(
+					authorizationRequest.getAuthorizationUri(),
+					authorizationRequest.getClientId(),
+					authorizationRequest.getRedirectUri(),
+					new LinkedHashSet<>(authorizationRequest.getScopes()),
+					authorizationRequest.getState(),
+					toStringMap(authorizationRequest.getAdditionalParameters()),
+					toStringMap(authorizationRequest.getAttributes()),
+					authorizationRequest.getAuthorizationRequestUri()
+			);
+			return encode(JSON_MAPPER.writeValueAsString(stored));
+		} catch (Exception e) {
+			return null;
+		}
+	}
 
-    private OAuth2AuthorizationRequest deserializeAuthorizationRequest(String cookieValue) {
-        if (cookieValue.length() > MAX_COOKIE_VALUE_LENGTH) {
-            log.warn("OAuth2 인가 요청 쿠키가 허용 크기를 초과했습니다");
-            return null;
-        }
-        try {
-            byte[] json = Base64.getUrlDecoder().decode(cookieValue);
-            StoredAuthorizationRequest stored = JSON_MAPPER.readValue(json, StoredAuthorizationRequest.class);
-            if (stored == null || isBlank(stored.authorizationUri()) || isBlank(stored.clientId())
-                    || isBlank(stored.state())) {
-                log.warn("OAuth2 인가 요청 쿠키에 필수 필드가 없습니다");
-                return null;
-            }
-            OAuth2AuthorizationRequest.Builder builder = OAuth2AuthorizationRequest.authorizationCode()
-                    .authorizationUri(stored.authorizationUri())
-                    .clientId(stored.clientId())
-                    .redirectUri(stored.redirectUri())
-                    .state(stored.state())
-                    .scopes(stored.scopes() == null ? new LinkedHashSet<>() : stored.scopes())
-                    .additionalParameters(toObjectMap(stored.additionalParameters()))
-                    .attributes(toObjectMap(stored.attributes()));
-            if (stored.authorizationRequestUri() != null) {
-                builder.authorizationRequestUri(stored.authorizationRequestUri());
-            }
-            return builder.build();
-        } catch (Exception e) {
-            // 변조·손상 쿠키는 예외 없이 무시한다(쿠키 값은 기록하지 않음)
-            log.warn("OAuth2 인가 요청 쿠키 복원 실패: {}", e.getClass().getSimpleName());
-            return null;
-        }
-    }
+	private OAuth2AuthorizationRequest deserializeAuthorizationRequest(String cookieValue) {
+		if (cookieValue.length() > MAX_COOKIE_VALUE_LENGTH) {
+			log.warn("OAuth2 인가 요청 쿠키가 허용 크기를 초과했습니다");
+			return null;
+		}
+		try {
+			byte[] json = Base64.getUrlDecoder().decode(cookieValue);
+			StoredAuthorizationRequest stored = JSON_MAPPER.readValue(json, StoredAuthorizationRequest.class);
+			if (stored == null || isBlank(stored.authorizationUri()) || isBlank(stored.clientId())
+					|| isBlank(stored.state())) {
+				log.warn("OAuth2 인가 요청 쿠키에 필수 필드가 없습니다");
+				return null;
+			}
+			OAuth2AuthorizationRequest.Builder builder = OAuth2AuthorizationRequest.authorizationCode()
+					.authorizationUri(stored.authorizationUri())
+					.clientId(stored.clientId())
+					.redirectUri(stored.redirectUri())
+					.state(stored.state())
+					.scopes(stored.scopes() == null ? new LinkedHashSet<>() : stored.scopes())
+					.additionalParameters(toObjectMap(stored.additionalParameters()))
+					.attributes(toObjectMap(stored.attributes()));
+			if (stored.authorizationRequestUri() != null) {
+				builder.authorizationRequestUri(stored.authorizationRequestUri());
+			}
+			return builder.build();
+		} catch (Exception e) {
+			// 변조·손상 쿠키는 예외 없이 무시한다(쿠키 값은 기록하지 않음)
+			log.warn("OAuth2 인가 요청 쿠키 복원 실패: {}", e.getClass().getSimpleName());
+			return null;
+		}
+	}
 
-    private Map<String, String> toStringMap(Map<String, Object> source) {
-        Map<String, String> result = new LinkedHashMap<>();
-        if (source != null) {
-            source.forEach((key, value) -> {
-                if (value instanceof String text) {
-                    result.put(key, text);
-                }
-            });
-        }
-        return result;
-    }
+	private Map<String, String> toStringMap(Map<String, Object> source) {
+		Map<String, String> result = new LinkedHashMap<>();
+		if (source != null) {
+			source.forEach((key, value) -> {
+				if (value instanceof String text) {
+					result.put(key, text);
+				}
+			});
+		}
+		return result;
+	}
 
-    private Map<String, Object> toObjectMap(Map<String, String> source) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        if (source != null) {
-            result.putAll(source);
-        }
-        return result;
-    }
+	private Map<String, Object> toObjectMap(Map<String, String> source) {
+		Map<String, Object> result = new LinkedHashMap<>();
+		if (source != null) {
+			result.putAll(source);
+		}
+		return result;
+	}
 
-    private Optional<String> findCookieValue(HttpServletRequest request, String name) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) {
-            return Optional.empty();
-        }
-        for (Cookie cookie : cookies) {
-            if (name.equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isEmpty()) {
-                return Optional.of(cookie.getValue());
-            }
-        }
-        return Optional.empty();
-    }
+	private Optional<String> findCookieValue(HttpServletRequest request, String name) {
+		Cookie[] cookies = request.getCookies();
+		if (cookies == null) {
+			return Optional.empty();
+		}
+		for (Cookie cookie : cookies) {
+			if (name.equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isEmpty()) {
+				return Optional.of(cookie.getValue());
+			}
+		}
+		return Optional.empty();
+	}
 
-    private void addCookie(HttpServletResponse response, HttpServletRequest request,
-                           String name, String value, int maxAgeSeconds) {
-        ResponseCookie cookie = ResponseCookie.from(name, value)
-                .httpOnly(true)
-                .secure(request.isSecure())
-                .path("/")
-                .maxAge(Duration.ofSeconds(maxAgeSeconds))
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
+	private void addCookie(HttpServletResponse response, HttpServletRequest request,
+			String name, String value, int maxAgeSeconds) {
+		ResponseCookie cookie = ResponseCookie.from(name, value)
+				.httpOnly(true)
+				.secure(request.isSecure())
+				.path("/")
+				.maxAge(Duration.ofSeconds(maxAgeSeconds))
+				.sameSite("Lax")
+				.build();
+		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+	}
 
-    private String encode(String text) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(text.getBytes(StandardCharsets.UTF_8));
-    }
+	private String encode(String text) {
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(text.getBytes(StandardCharsets.UTF_8));
+	}
 
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
-    }
+	private boolean isBlank(String value) {
+		return value == null || value.isBlank();
+	}
 }

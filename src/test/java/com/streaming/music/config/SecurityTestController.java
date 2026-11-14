@@ -10,13 +10,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class SecurityTestController {
 
-    @GetMapping("/test/ping")
-    String getPing() {
-        return "pong";
-    }
+	@GetMapping("/test/ping")
+	String getPing() {
+		return "pong";
+	}
 
-    @PostMapping("/test/ping")
-    String postPing() {
-        return "pong";
-    }
+	@PostMapping("/test/ping")
+	String postPing() {
+		return "pong";
+	}
 }

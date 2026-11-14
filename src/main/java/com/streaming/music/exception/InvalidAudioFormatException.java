@@ -5,15 +5,15 @@ package com.streaming.music.exception;
  */
 public class InvalidAudioFormatException extends BusinessException {
 
-    public InvalidAudioFormatException() {
-        super(ErrorCode.INVALID_AUDIO_FORMAT);
-    }
+	public InvalidAudioFormatException() {
+		super(ErrorCode.INVALID_AUDIO_FORMAT);
+	}
 
-    public InvalidAudioFormatException(String message) {
-        super(ErrorCode.INVALID_AUDIO_FORMAT, message);
-    }
+	public InvalidAudioFormatException(String message) {
+		super(ErrorCode.INVALID_AUDIO_FORMAT, message);
+	}
 
-    public InvalidAudioFormatException(String message, Throwable cause) {
-        super(ErrorCode.INVALID_AUDIO_FORMAT, message, cause);
-    }
+	public InvalidAudioFormatException(String message, Throwable cause) {
+		super(ErrorCode.INVALID_AUDIO_FORMAT, message, cause);
+	}
 }

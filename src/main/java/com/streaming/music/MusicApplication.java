@@ -8,8 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @ConfigurationPropertiesScan("com.streaming.music.config.properties")
 public class MusicApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(MusicApplication.class, args);
-    }
+	public static void main(String[] args) {
+		SpringApplication.run(MusicApplication.class, args);
+	}
 
 }

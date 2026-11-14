@@ -24,46 +24,46 @@ import lombok.NoArgsConstructor;
  */
 @Entity
 @Table(name = "playback_logs", indexes = {
-        @Index(name = "idx_playback_logs_track_id", columnList = "track_id")
+		@Index(name = "idx_playback_logs_track_id", columnList = "track_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PlaybackLog {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "log_id")
-    private Long logId;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "log_id")
+	private Long logId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "track_id", nullable = false)
-    private Track track;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "track_id", nullable = false)
+	private Track track;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id")
+	private User user;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "action_type", nullable = false, length = 20)
-    private ActionType actionType = ActionType.STREAM;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "action_type", nullable = false, length = 20)
+	private ActionType actionType = ActionType.STREAM;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+	@Column(name = "created_at", nullable = false, updatable = false)
+	private Instant createdAt;
 
-    @Builder
-    private PlaybackLog(Track track, User user, ActionType actionType, Instant createdAt) {
-        this.track = track;
-        this.user = user;
-        if (actionType != null) {
-            this.actionType = actionType;
-        }
-        this.createdAt = createdAt;
-    }
+	@Builder
+	private PlaybackLog(Track track, User user, ActionType actionType, Instant createdAt) {
+		this.track = track;
+		this.user = user;
+		if (actionType != null) {
+			this.actionType = actionType;
+		}
+		this.createdAt = createdAt;
+	}
 
-    @PrePersist
-    void prePersist() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-    }
+	@PrePersist
+	void prePersist() {
+		if (createdAt == null) {
+			createdAt = Instant.now();
+		}
+	}
 }

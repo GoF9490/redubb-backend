@@ -8,19 +8,19 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties(prefix = "app.storage")
 public record StorageProperties(
-        String endpoint,
-        @DefaultValue("us-east-1") String region,
-        String accessKey,
-        String secretKey,
-        @DefaultValue("audio-storage") String bucketName,
-        @DefaultValue("60") int presignedExpirySeconds
+		String endpoint,
+		@DefaultValue("us-east-1") String region,
+		String accessKey,
+		String secretKey,
+		@DefaultValue("audio-storage") String bucketName,
+		@DefaultValue("60") int presignedExpirySeconds
 ) {
 
-    /** 접근 키/시크릿 키 로그 노출 방지를 위해 마스킹한다. */
-    @Override
-    public String toString() {
-        return "StorageProperties[endpoint=" + endpoint + ", region=" + region
-                + ", accessKey=****, secretKey=****, bucketName=" + bucketName
-                + ", presignedExpirySeconds=" + presignedExpirySeconds + "]";
-    }
+	/** 접근 키/시크릿 키 로그 노출 방지를 위해 마스킹한다. */
+	@Override
+	public String toString() {
+		return "StorageProperties[endpoint=" + endpoint + ", region=" + region
+				+ ", accessKey=****, secretKey=****, bucketName=" + bucketName
+				+ ", presignedExpirySeconds=" + presignedExpirySeconds + "]";
+	}
 }

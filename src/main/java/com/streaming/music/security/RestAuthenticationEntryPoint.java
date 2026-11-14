@@ -20,14 +20,14 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final JsonMapper jsonMapper;
+	private final JsonMapper jsonMapper;
 
-    @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response,
-                         AuthenticationException authException) throws IOException {
-        response.setStatus(ErrorCode.UNAUTHORIZED.getStatus().value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(jsonMapper.writeValueAsString(ErrorResponse.of(ErrorCode.UNAUTHORIZED)));
-    }
+	@Override
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) throws IOException {
+		response.setStatus(ErrorCode.UNAUTHORIZED.getStatus().value());
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		response.setCharacterEncoding("UTF-8");
+		response.getWriter().write(jsonMapper.writeValueAsString(ErrorResponse.of(ErrorCode.UNAUTHORIZED)));
+	}
 }

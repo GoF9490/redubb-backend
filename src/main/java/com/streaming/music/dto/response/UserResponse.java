@@ -7,7 +7,7 @@ import com.streaming.music.entity.User;
  */
 public record UserResponse(Long userId, String email, String profileImageUrl, String role) {
 
-    public static UserResponse from(User user) {
-        return new UserResponse(user.getUserId(), user.getEmail(), user.getProfileImageUrl(), user.getRole());
-    }
+	public static UserResponse from(User user) {
+		return new UserResponse(user.getUserId(), user.getEmail(), user.getProfileImageUrl(), user.getRole());
+	}
 }

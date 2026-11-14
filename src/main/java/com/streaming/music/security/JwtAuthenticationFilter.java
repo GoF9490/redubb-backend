@@ -22,37 +22,37 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String BEARER_PREFIX = "Bearer ";
+	private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JwtTokenProvider jwtTokenProvider;
+	private final JwtTokenProvider jwtTokenProvider;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
-        this.jwtTokenProvider = jwtTokenProvider;
-    }
+	public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+		this.jwtTokenProvider = jwtTokenProvider;
+	}
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            extractToken(request)
-                    .flatMap(jwtTokenProvider::parseToken)
-                    .ifPresent(claims -> {
-                        AuthenticatedUser principal = new AuthenticatedUser(claims.userId(), claims.role());
-                        SecurityContextHolder.getContext().setAuthentication(
-                                new UsernamePasswordAuthenticationToken(principal, null,
-                                        List.of(new SimpleGrantedAuthority(claims.role()))));
-                    });
-        }
-        filterChain.doFilter(request, response);
-    }
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+									FilterChain filterChain) throws ServletException, IOException {
+		if (SecurityContextHolder.getContext().getAuthentication() == null) {
+			extractToken(request)
+					.flatMap(jwtTokenProvider::parseToken)
+					.ifPresent(claims -> {
+						AuthenticatedUser principal = new AuthenticatedUser(claims.userId(), claims.role());
+						SecurityContextHolder.getContext().setAuthentication(
+								new UsernamePasswordAuthenticationToken(principal, null,
+										List.of(new SimpleGrantedAuthority(claims.role()))));
+					});
+		}
+		filterChain.doFilter(request, response);
+	}
 
-    /** Bearer 접두(대소문자 무시) 뒤의 토큰을 추출한다. 형식이 다르거나 비어 있으면 empty. */
-    private java.util.Optional<String> extractToken(HttpServletRequest request) {
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header == null || !header.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
-            return java.util.Optional.empty();
-        }
-        String token = header.substring(BEARER_PREFIX.length()).trim();
-        return token.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(token);
-    }
+	/** Bearer 접두(대소문자 무시) 뒤의 토큰을 추출한다. 형식이 다르거나 비어 있으면 empty. */
+	private java.util.Optional<String> extractToken(HttpServletRequest request) {
+		String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+		if (header == null || !header.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
+			return java.util.Optional.empty();
+		}
+		String token = header.substring(BEARER_PREFIX.length()).trim();
+		return token.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(token);
+	}
 }

@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.cors")
 public record CorsProperties(List<String> allowedOrigins) {
 
-    public CorsProperties {
-        allowedOrigins = PropertyUtils.normalizeList(allowedOrigins);
-    }
+	public CorsProperties {
+		allowedOrigins = PropertyUtils.normalizeList(allowedOrigins);
+	}
 }

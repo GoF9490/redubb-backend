@@ -11,37 +11,37 @@ package com.streaming.music.service;
  */
 public record FfmpegResult(Status status, int exitCode, String logSummary) {
 
-    /** 로그 요약 최대 길이(문자). */
-    public static final int MAX_SUMMARY_LENGTH = 500;
+	/** 로그 요약 최대 길이(문자). */
+	public static final int MAX_SUMMARY_LENGTH = 500;
 
-    public enum Status {
-        SUCCESS,
-        FAILED,
-        TIMEOUT
-    }
+	public enum Status {
+		SUCCESS,
+		FAILED,
+		TIMEOUT
+	}
 
-    public FfmpegResult {
-        if (logSummary == null) {
-            logSummary = "";
-        } else if (logSummary.length() > MAX_SUMMARY_LENGTH) {
-            // 마지막 로그가 중요하므로 뒤쪽을 보존한다
-            logSummary = logSummary.substring(logSummary.length() - MAX_SUMMARY_LENGTH);
-        }
-    }
+	public FfmpegResult {
+		if (logSummary == null) {
+			logSummary = "";
+		} else if (logSummary.length() > MAX_SUMMARY_LENGTH) {
+			// 마지막 로그가 중요하므로 뒤쪽을 보존한다
+			logSummary = logSummary.substring(logSummary.length() - MAX_SUMMARY_LENGTH);
+		}
+	}
 
-    public static FfmpegResult success(String logSummary) {
-        return new FfmpegResult(Status.SUCCESS, 0, logSummary);
-    }
+	public static FfmpegResult success(String logSummary) {
+		return new FfmpegResult(Status.SUCCESS, 0, logSummary);
+	}
 
-    public static FfmpegResult failed(int exitCode, String logSummary) {
-        return new FfmpegResult(Status.FAILED, exitCode, logSummary);
-    }
+	public static FfmpegResult failed(int exitCode, String logSummary) {
+		return new FfmpegResult(Status.FAILED, exitCode, logSummary);
+	}
 
-    public static FfmpegResult timeout(String logSummary) {
-        return new FfmpegResult(Status.TIMEOUT, -1, logSummary);
-    }
+	public static FfmpegResult timeout(String logSummary) {
+		return new FfmpegResult(Status.TIMEOUT, -1, logSummary);
+	}
 
-    public boolean isSuccess() {
-        return status == Status.SUCCESS;
-    }
+	public boolean isSuccess() {
+		return status == Status.SUCCESS;
+	}
 }

@@ -19,11 +19,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ApplicationEventTranscodeTaskDispatcher implements TranscodeTaskDispatcher {
 
-    private final ApplicationEventPublisher eventPublisher;
+	private final ApplicationEventPublisher eventPublisher;
 
-    @Override
-    public void dispatch(TranscodeEventDto dto) {
-        Objects.requireNonNull(dto, "dto must not be null");
-        eventPublisher.publishEvent(dto);
-    }
+	@Override
+	public void dispatch(TranscodeEventDto dto) {
+		Objects.requireNonNull(dto, "dto must not be null");
+		eventPublisher.publishEvent(dto);
+	}
 }

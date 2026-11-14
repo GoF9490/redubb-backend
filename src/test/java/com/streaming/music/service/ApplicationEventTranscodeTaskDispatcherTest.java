@@ -19,29 +19,29 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class ApplicationEventTranscodeTaskDispatcherTest {
 
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks
-    private ApplicationEventTranscodeTaskDispatcher dispatcher;
+	@InjectMocks
+	private ApplicationEventTranscodeTaskDispatcher dispatcher;
 
-    @Test
-    @DisplayName("dispatch는 publishEvent를 정확히 1회 호출한다")
-    void dispatchPublishesEventOnce() {
-        TranscodeEventDto dto = new TranscodeEventDto(UUID.randomUUID(), "original/2026/11/a.mp3");
+	@Test
+	@DisplayName("dispatch는 publishEvent를 정확히 1회 호출한다")
+	void dispatchPublishesEventOnce() {
+		TranscodeEventDto dto = new TranscodeEventDto(UUID.randomUUID(), "original/2026/11/a.mp3");
 
-        dispatcher.dispatch(dto);
+		dispatcher.dispatch(dto);
 
-        verify(eventPublisher, times(1)).publishEvent(dto);
-        verifyNoMoreInteractions(eventPublisher);
-    }
+		verify(eventPublisher, times(1)).publishEvent(dto);
+		verifyNoMoreInteractions(eventPublisher);
+	}
 
-    @Test
-    @DisplayName("dto가 null이면 NPE가 발생하고 이벤트는 발행되지 않는다")
-    void dispatchRejectsNullDto() {
-        assertThatThrownBy(() -> dispatcher.dispatch(null))
-                .isInstanceOf(NullPointerException.class);
+	@Test
+	@DisplayName("dto가 null이면 NPE가 발생하고 이벤트는 발행되지 않는다")
+	void dispatchRejectsNullDto() {
+		assertThatThrownBy(() -> dispatcher.dispatch(null))
+				.isInstanceOf(NullPointerException.class);
 
-        verifyNoInteractions(eventPublisher);
-    }
+		verifyNoInteractions(eventPublisher);
+	}
 }

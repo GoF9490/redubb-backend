@@ -28,82 +28,82 @@ import org.springframework.test.web.servlet.MvcResult;
 @ActiveProfiles({"local", "test"})
 class OAuth2LoginFlowTest {
 
-    @MockitoBean
-    private JwtTokenProvider jwtTokenProvider;
+	@MockitoBean
+	private JwtTokenProvider jwtTokenProvider;
 
-    @MockitoBean
-    private CustomOidcUserService customOidcUserService;
+	@MockitoBean
+	private CustomOidcUserService customOidcUserService;
 
-    @MockitoBean
-    private UserService userService;
+	@MockitoBean
+	private UserService userService;
 
-    @Autowired
-    private MockMvc mockMvc;
+	@Autowired
+	private MockMvc mockMvc;
 
-    private List<String> setCookies(MvcResult result) {
-        return result.getResponse().getHeaders("Set-Cookie");
-    }
+	private List<String> setCookies(MvcResult result) {
+		return result.getResponse().getHeaders("Set-Cookie");
+	}
 
-    @Test
-    @DisplayName("로그인 진입은 Google 인가 URL로 302하고 state·nonce를 포함하며 세션 쿠키가 없다")
-    void redirectToGoogleAuthorization() throws Exception {
-        MvcResult result = mockMvc.perform(get("/oauth2/authorization/google")
-                .param("redirect_uri", "musicapp://oauth2/callback")).andReturn();
+	@Test
+	@DisplayName("로그인 진입은 Google 인가 URL로 302하고 state·nonce를 포함하며 세션 쿠키가 없다")
+	void redirectToGoogleAuthorization() throws Exception {
+		MvcResult result = mockMvc.perform(get("/oauth2/authorization/google")
+				.param("redirect_uri", "musicapp://oauth2/callback")).andReturn();
 
-        String location = result.getResponse().getHeader("Location");
-        assertThat(result.getResponse().getStatus()).isEqualTo(302);
-        assertThat(location).startsWith("https://accounts.google.com/o/oauth2/v2/auth");
-        assertThat(location).contains("state=", "nonce=", "client_id=test-google-client-id", "scope=openid");
-        assertThat(location).contains("redirect_uri=http", "login/oauth2/code/google");
+		String location = result.getResponse().getHeader("Location");
+		assertThat(result.getResponse().getStatus()).isEqualTo(302);
+		assertThat(location).startsWith("https://accounts.google.com/o/oauth2/v2/auth");
+		assertThat(location).contains("state=", "nonce=", "client_id=test-google-client-id", "scope=openid");
+		assertThat(location).contains("redirect_uri=http", "login/oauth2/code/google");
 
-        assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_auth_request=")
-                && c.contains("HttpOnly") && c.contains("SameSite=Lax"));
-        assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_redirect_uri=")
-                && !c.startsWith("oauth2_redirect_uri=;") && c.contains("HttpOnly"));
-        assertThat(setCookies(result)).noneMatch(c -> c.contains("JSESSIONID"));
-        assertThat(result.getRequest().getSession(false)).isNull();
-    }
+		assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_auth_request=")
+				&& c.contains("HttpOnly") && c.contains("SameSite=Lax"));
+		assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_redirect_uri=")
+				&& !c.startsWith("oauth2_redirect_uri=;") && c.contains("HttpOnly"));
+		assertThat(setCookies(result)).noneMatch(c -> c.contains("JSESSIONID"));
+		assertThat(result.getRequest().getSession(false)).isNull();
+	}
 
-    @Test
-    @DisplayName("redirect_uri 없이 진입하면 인가 요청 쿠키만 값이 있고 세션이 없다")
-    void startLoginWithoutRedirectUri() throws Exception {
-        MvcResult result = mockMvc.perform(get("/oauth2/authorization/google")).andReturn();
+	@Test
+	@DisplayName("redirect_uri 없이 진입하면 인가 요청 쿠키만 값이 있고 세션이 없다")
+	void startLoginWithoutRedirectUri() throws Exception {
+		MvcResult result = mockMvc.perform(get("/oauth2/authorization/google")).andReturn();
 
-        assertThat(result.getResponse().getStatus()).isEqualTo(302);
-        assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_auth_request=") && !c.startsWith("oauth2_auth_request=;"));
-        assertThat(setCookies(result)).noneMatch(c -> c.contains("JSESSIONID"));
-    }
+		assertThat(result.getResponse().getStatus()).isEqualTo(302);
+		assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_auth_request=") && !c.startsWith("oauth2_auth_request=;"));
+		assertThat(setCookies(result)).noneMatch(c -> c.contains("JSESSIONID"));
+	}
 
-    @Test
-    @DisplayName("oauth2Login 추가 후에도 미인증 /api/auth/me는 리다이렉트 없이 401 JSON이다")
-    void returnUnauthorizedJsonForMeWithoutRedirect() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/auth/me")).andReturn();
+	@Test
+	@DisplayName("oauth2Login 추가 후에도 미인증 /api/auth/me는 리다이렉트 없이 401 JSON이다")
+	void returnUnauthorizedJsonForMeWithoutRedirect() throws Exception {
+		MvcResult result = mockMvc.perform(get("/api/auth/me")).andReturn();
 
-        assertThat(result.getResponse().getStatus()).isEqualTo(401);
-        assertThat(result.getResponse().getHeader("Location")).isNull();
-        assertThat(result.getResponse().getContentType()).startsWith("application/json");
-        assertThat(result.getResponse().getContentAsString()).contains("UNAUTHORIZED");
-        assertThat(setCookies(result)).noneMatch(c -> c.contains("JSESSIONID"));
-    }
+		assertThat(result.getResponse().getStatus()).isEqualTo(401);
+		assertThat(result.getResponse().getHeader("Location")).isNull();
+		assertThat(result.getResponse().getContentType()).startsWith("application/json");
+		assertThat(result.getResponse().getContentAsString()).contains("UNAUTHORIZED");
+		assertThat(setCookies(result)).noneMatch(c -> c.contains("JSESSIONID"));
+	}
 
-    @Test
-    @DisplayName("인가 요청 쿠키 없는 콜백은 실패 핸들러로 연결되어 기본 URI?error= 로 리다이렉트한다")
-    void redirectWithErrorOnCallbackWithoutAuthorizationRequest() throws Exception {
-        MvcResult result = mockMvc.perform(get("/login/oauth2/code/google")
-                .param("code", "x").param("state", "y")).andReturn();
+	@Test
+	@DisplayName("인가 요청 쿠키 없는 콜백은 실패 핸들러로 연결되어 기본 URI?error= 로 리다이렉트한다")
+	void redirectWithErrorOnCallbackWithoutAuthorizationRequest() throws Exception {
+		MvcResult result = mockMvc.perform(get("/login/oauth2/code/google")
+				.param("code", "x").param("state", "y")).andReturn();
 
-        assertThat(result.getResponse().getStatus()).isEqualTo(302);
-        assertThat(result.getResponse().getHeader("Location"))
-                .isEqualTo("http://localhost/auth/callback?error=authorization_request_not_found");
-        assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_redirect_uri=;") && c.contains("Max-Age=0"));
-    }
+		assertThat(result.getResponse().getStatus()).isEqualTo(302);
+		assertThat(result.getResponse().getHeader("Location"))
+				.isEqualTo("http://localhost/auth/callback?error=authorization_request_not_found");
+		assertThat(setCookies(result)).anyMatch(c -> c.startsWith("oauth2_redirect_uri=;") && c.contains("Max-Age=0"));
+	}
 
-    @Test
-    @DisplayName("기본 로그인 페이지(HTML)는 노출되지 않는다")
-    void notExposeDefaultLoginPage() throws Exception {
-        MvcResult result = mockMvc.perform(get("/login")).andReturn();
+	@Test
+	@DisplayName("기본 로그인 페이지(HTML)는 노출되지 않는다")
+	void notExposeDefaultLoginPage() throws Exception {
+		MvcResult result = mockMvc.perform(get("/login")).andReturn();
 
-        assertThat(result.getResponse().getStatus()).isEqualTo(404);
-        assertThat(result.getResponse().getContentType()).doesNotContain("html");
-    }
+		assertThat(result.getResponse().getStatus()).isEqualTo(404);
+		assertThat(result.getResponse().getContentType()).doesNotContain("html");
+	}
 }

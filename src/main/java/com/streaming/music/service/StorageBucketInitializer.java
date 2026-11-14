@@ -14,14 +14,14 @@ import org.springframework.stereotype.Component;
 @Profile("!test")
 public class StorageBucketInitializer implements ApplicationRunner {
 
-    private final StorageService storageService;
+	private final StorageService storageService;
 
-    public StorageBucketInitializer(StorageService storageService) {
-        this.storageService = storageService;
-    }
+	public StorageBucketInitializer(StorageService storageService) {
+		this.storageService = storageService;
+	}
 
-    @Override
-    public void run(ApplicationArguments args) {
-        storageService.ensureBucketExists();
-    }
+	@Override
+	public void run(ApplicationArguments args) {
+		storageService.ensureBucketExists();
+	}
 }

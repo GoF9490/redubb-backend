@@ -35,34 +35,34 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Profile("!test")
 public class TranscodeRecoveryRunner implements ApplicationRunner {
 
-    public static final String INTERRUPTED_MESSAGE = "INTERRUPTED_BY_RESTART";
+	public static final String INTERRUPTED_MESSAGE = "INTERRUPTED_BY_RESTART";
 
-    private final TrackRepository trackRepository;
-    private final AudioProperties audioProperties;
-    private final Clock clock;
-    private final TransactionTemplate transactionTemplate;
+	private final TrackRepository trackRepository;
+	private final AudioProperties audioProperties;
+	private final Clock clock;
+	private final TransactionTemplate transactionTemplate;
 
-    public TranscodeRecoveryRunner(TrackRepository trackRepository,
-                                   AudioProperties audioProperties,
-                                   Clock clock,
-                                   PlatformTransactionManager transactionManager) {
-        this.trackRepository = trackRepository;
-        this.audioProperties = audioProperties;
-        this.clock = clock;
-        this.transactionTemplate = new TransactionTemplate(transactionManager);
-    }
+	public TranscodeRecoveryRunner(TrackRepository trackRepository,
+			AudioProperties audioProperties,
+			Clock clock,
+			PlatformTransactionManager transactionManager) {
+		this.trackRepository = trackRepository;
+		this.audioProperties = audioProperties;
+		this.clock = clock;
+		this.transactionTemplate = new TransactionTemplate(transactionManager);
+	}
 
-    @Override
-    public void run(ApplicationArguments args) {
-        // 같은 시각 값을 threshold 계산과 updatedAt 지정에 함께 사용한다
-        Instant now = Instant.now(clock);
-        Instant threshold = now.minus(Duration.ofMinutes(audioProperties.ffmpegTimeoutMinutes() * 2L));
-        try {
-            Integer updated = transactionTemplate.execute(
-                    status -> trackRepository.failStaleTracks(threshold, now, INTERRUPTED_MESSAGE));
-            log.info("기동 시 미완료 트랙 정리 완료: {}건 FAILED 처리", updated);
-        } catch (Exception e) {
-            log.error("기동 시 미완료 트랙 정리에 실패했습니다. 기동은 계속합니다.", e);
-        }
-    }
+	@Override
+	public void run(ApplicationArguments args) {
+		// 같은 시각 값을 threshold 계산과 updatedAt 지정에 함께 사용한다
+		Instant now = Instant.now(clock);
+		Instant threshold = now.minus(Duration.ofMinutes(audioProperties.ffmpegTimeoutMinutes() * 2L));
+		try {
+			Integer updated = transactionTemplate.execute(
+					status -> trackRepository.failStaleTracks(threshold, now, INTERRUPTED_MESSAGE));
+			log.info("기동 시 미완료 트랙 정리 완료: {}건 FAILED 처리", updated);
+		} catch (Exception e) {
+			log.error("기동 시 미완료 트랙 정리에 실패했습니다. 기동은 계속합니다.", e);
+		}
+	}
 }

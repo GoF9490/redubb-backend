@@ -24,27 +24,27 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  */
 class TrackUploadRollbackIntegrationTest extends TranscodeIntegrationTestBase {
 
-    @MockitoSpyBean
-    private TranscodeTaskDispatcher spyDispatcher;
+	@MockitoSpyBean
+	private TranscodeTaskDispatcher spyDispatcher;
 
-    @Autowired
-    private TrackService trackService;
+	@Autowired
+	private TrackService trackService;
 
-    @Test
-    @DisplayName("이벤트 발행 중 예외로 롤백되면 원본을 보상 삭제하고 변환은 시작되지 않으며 트랙도 남지 않는다")
-    void compensatesAndSkipsTranscodeWhenDispatchFails() {
-        doThrow(new IllegalStateException("boom")).when(spyDispatcher).dispatch(any(TranscodeEventDto.class));
-        long before = trackRepository.count();
-        MockMultipartFile file = new MockMultipartFile("file", "sample.mp3", "audio/mpeg",
-                SampleFixtures.readSampleBytes(SampleFixtures.TAGGED_MP3));
+	@Test
+	@DisplayName("이벤트 발행 중 예외로 롤백되면 원본을 보상 삭제하고 변환은 시작되지 않으며 트랙도 남지 않는다")
+	void compensatesAndSkipsTranscodeWhenDispatchFails() {
+		doThrow(new IllegalStateException("boom")).when(spyDispatcher).dispatch(any(TranscodeEventDto.class));
+		long before = trackRepository.count();
+		MockMultipartFile file = new MockMultipartFile("file", "sample.mp3", "audio/mpeg",
+				SampleFixtures.readSampleBytes(SampleFixtures.TAGGED_MP3));
 
-        assertThatThrownBy(() -> trackService.upload(new TrackUploadRequest(file, null, null, null, null), null))
-                .isInstanceOf(IllegalStateException.class).hasMessage("boom");
+		assertThatThrownBy(() -> trackService.upload(new TrackUploadRequest(file, null, null, null, null), null))
+				.isInstanceOf(IllegalStateException.class).hasMessage("boom");
 
-        ArgumentCaptor<String> uploadedKey = ArgumentCaptor.forClass(String.class);
-        verify(storageService).uploadFile(uploadedKey.capture(), any(), any());
-        verify(storageService).deleteObject(uploadedKey.getValue());
-        verify(ffmpegCommandRunner, after(300).never()).transcodeToHls(any(), any());
-        assertThat(trackRepository.count()).isEqualTo(before);
-    }
+		ArgumentCaptor<String> uploadedKey = ArgumentCaptor.forClass(String.class);
+		verify(storageService).uploadFile(uploadedKey.capture(), any(), any());
+		verify(storageService).deleteObject(uploadedKey.getValue());
+		verify(ffmpegCommandRunner, after(300).never()).transcodeToHls(any(), any());
+		assertThat(trackRepository.count()).isEqualTo(before);
+	}
 }

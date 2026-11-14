@@ -15,30 +15,30 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles({"local", "test"})
 class ConfigurationPropertiesScanTest {
 
-    @Autowired
-    private JwtProperties jwtProperties;
+	@Autowired
+	private JwtProperties jwtProperties;
 
-    @Autowired
-    private StorageProperties storageProperties;
+	@Autowired
+	private StorageProperties storageProperties;
 
-    @Autowired
-    private AudioProperties audioProperties;
+	@Autowired
+	private AudioProperties audioProperties;
 
-    @Autowired
-    private MediaProperties mediaProperties;
+	@Autowired
+	private MediaProperties mediaProperties;
 
-    @Autowired
-    private CorsProperties corsProperties;
+	@Autowired
+	private CorsProperties corsProperties;
 
-    @Test
-    @DisplayName("5종 Properties가 빈으로 등록되고 yaml 기본값이 반영된다")
-    void registersPropertiesViaScanAndReflectsYamlValues() {
-        assertThat(storageProperties.presignedExpirySeconds()).isEqualTo(60);
-        assertThat(audioProperties.ffmpegTimeoutMinutes()).isEqualTo(3);
-        assertThat(jwtProperties.secretKey()).startsWith("test-only-");
-        assertThat(jwtProperties.allowedRedirectUris())
-                .containsExactly("http://localhost/auth/callback", "musicapp://oauth2/callback");
-        assertThat(mediaProperties.publicBaseUrl()).isEmpty();
-        assertThat(corsProperties.allowedOrigins()).isEmpty();
-    }
+	@Test
+	@DisplayName("5종 Properties가 빈으로 등록되고 yaml 기본값이 반영된다")
+	void registersPropertiesViaScanAndReflectsYamlValues() {
+		assertThat(storageProperties.presignedExpirySeconds()).isEqualTo(60);
+		assertThat(audioProperties.ffmpegTimeoutMinutes()).isEqualTo(3);
+		assertThat(jwtProperties.secretKey()).startsWith("test-only-");
+		assertThat(jwtProperties.allowedRedirectUris())
+				.containsExactly("http://localhost/auth/callback", "musicapp://oauth2/callback");
+		assertThat(mediaProperties.publicBaseUrl()).isEmpty();
+		assertThat(corsProperties.allowedOrigins()).isEmpty();
+	}
 }

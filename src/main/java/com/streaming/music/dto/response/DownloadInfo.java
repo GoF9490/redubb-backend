@@ -10,15 +10,15 @@ package com.streaming.music.dto.response;
  * @param contentType        {@code Content-Type} 헤더 값 (트랙의 MIME)
  */
 public record DownloadInfo(
-        String xAccelRedirectUri,
-        String contentDisposition,
-        String contentType
+		String xAccelRedirectUri,
+		String contentDisposition,
+		String contentType
 ) {
 
-    /** 서명 쿼리가 로그·예외 메시지로 새지 않도록 redirect 값을 가린다. */
-    @Override
-    public String toString() {
-        return "DownloadInfo[xAccelRedirectUri=****, contentDisposition=" + contentDisposition
-                + ", contentType=" + contentType + "]";
-    }
+	/** 서명 쿼리가 로그·예외 메시지로 새지 않도록 redirect 값을 가린다. */
+	@Override
+	public String toString() {
+		return "DownloadInfo[xAccelRedirectUri=****, contentDisposition=" + contentDisposition
+				+ ", contentType=" + contentType + "]";
+	}
 }

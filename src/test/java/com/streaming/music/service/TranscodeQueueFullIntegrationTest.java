@@ -35,85 +35,85 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ActiveProfiles({"local", "test"})
 class TranscodeQueueFullIntegrationTest {
 
-    /** 대조군 이벤트. 운영 릴레이는 이 타입을 수신하지 않는다. */
-    record ControlEvent(String name) {
-    }
+	/** 대조군 이벤트. 운영 릴레이는 이 타입을 수신하지 않는다. */
+	record ControlEvent(String name) {
+	}
 
-    @TestConfiguration
-    static class ControlListenerConfig {
+	@TestConfiguration
+	static class ControlListenerConfig {
 
-        @Bean
-        ThrowingControlListener throwingControlListener() {
-            return new ThrowingControlListener();
-        }
-    }
+		@Bean
+		ThrowingControlListener throwingControlListener() {
+			return new ThrowingControlListener();
+		}
+	}
 
-    static class ThrowingControlListener {
+	static class ThrowingControlListener {
 
-        static final AtomicBoolean invoked = new AtomicBoolean(false);
+		static final AtomicBoolean invoked = new AtomicBoolean(false);
 
-        @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-        void onControl(ControlEvent event) {
-            invoked.set(true);
-            throw new TaskRejectedException("control rejected");
-        }
-    }
+		@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+		void onControl(ControlEvent event) {
+			invoked.set(true);
+			throw new TaskRejectedException("control rejected");
+		}
+	}
 
-    @MockitoBean
-    private TranscodeProcessor processor;
+	@MockitoBean
+	private TranscodeProcessor processor;
 
-    @Autowired
-    private TransactionTemplate transactionTemplate;
+	@Autowired
+	private TransactionTemplate transactionTemplate;
 
-    @Autowired
-    private ApplicationEventPublisher eventPublisher;
+	@Autowired
+	private ApplicationEventPublisher eventPublisher;
 
-    @Autowired
-    private TrackRepository trackRepository;
+	@Autowired
+	private TrackRepository trackRepository;
 
-    @Test
-    @DisplayName("대조군(Spring 7.0.10 실측): AFTER_COMMIT 리스너 예외는 execute로 전파되지 않아 후속 처리 없이 트랙이 PENDING에 남는다")
-    void leavesTrackPendingWhenAfterCommitListenerThrows() {
-        UUID trackId = UUID.randomUUID();
-        trackRepository.save(Track.builder()
-                .trackId(trackId).title("t").durationSeconds(1).originalFilename("a.mp3")
-                .fileExtension("mp3").fileSizeBytes(1L).mimeType("audio/mpeg")
-                .originalS3Key("original/a.mp3").build());
-        ThrowingControlListener.invoked.set(false);
+	@Test
+	@DisplayName("대조군(Spring 7.0.10 실측): AFTER_COMMIT 리스너 예외는 execute로 전파되지 않아 후속 처리 없이 트랙이 PENDING에 남는다")
+	void leavesTrackPendingWhenAfterCommitListenerThrows() {
+		UUID trackId = UUID.randomUUID();
+		trackRepository.save(Track.builder()
+				.trackId(trackId).title("t").durationSeconds(1).originalFilename("a.mp3")
+				.fileExtension("mp3").fileSizeBytes(1L).mimeType("audio/mpeg")
+				.originalS3Key("original/a.mp3").build());
+		ThrowingControlListener.invoked.set(false);
 
-        try {
-            assertThatCode(() -> transactionTemplate.executeWithoutResult(
-                    status -> eventPublisher.publishEvent(new ControlEvent("c"))))
-                    .doesNotThrowAnyException();
+		try {
+			assertThatCode(() -> transactionTemplate.executeWithoutResult(
+					status -> eventPublisher.publishEvent(new ControlEvent("c"))))
+					.doesNotThrowAnyException();
 
-            // 리스너는 실제로 실행되었지만(예외 발생) 아무도 트랙 상태를 바꾸지 않는다
-            assertThat(ThrowingControlListener.invoked).isTrue();
-            assertThat(trackRepository.findById(trackId).orElseThrow().getStatus())
-                    .isEqualTo(TrackStatus.PENDING);
-        } finally {
-            trackRepository.deleteById(trackId);
-        }
-    }
+			// 리스너는 실제로 실행되었지만(예외 발생) 아무도 트랙 상태를 바꾸지 않는다
+			assertThat(ThrowingControlListener.invoked).isTrue();
+			assertThat(trackRepository.findById(trackId).orElseThrow().getStatus())
+					.isEqualTo(TrackStatus.PENDING);
+		} finally {
+			trackRepository.deleteById(trackId);
+		}
+	}
 
-    @Test
-    @DisplayName("릴레이 경로: 거부되어도 execute는 예외 없이 끝나고 트랙이 FAILED로 저장된다")
-    void marksTrackFailedWithoutPropagatingWhenRejected() {
-        UUID trackId = UUID.randomUUID();
-        trackRepository.save(Track.builder()
-                .trackId(trackId).title("t").durationSeconds(1).originalFilename("a.mp3")
-                .fileExtension("mp3").fileSizeBytes(1L).mimeType("audio/mpeg")
-                .originalS3Key("original/a.mp3").build());
-        TranscodeEventDto dto = new TranscodeEventDto(trackId, "original/a.mp3");
-        doThrow(new TaskRejectedException("full")).when(processor).process(dto);
+	@Test
+	@DisplayName("릴레이 경로: 거부되어도 execute는 예외 없이 끝나고 트랙이 FAILED로 저장된다")
+	void marksTrackFailedWithoutPropagatingWhenRejected() {
+		UUID trackId = UUID.randomUUID();
+		trackRepository.save(Track.builder()
+				.trackId(trackId).title("t").durationSeconds(1).originalFilename("a.mp3")
+				.fileExtension("mp3").fileSizeBytes(1L).mimeType("audio/mpeg")
+				.originalS3Key("original/a.mp3").build());
+		TranscodeEventDto dto = new TranscodeEventDto(trackId, "original/a.mp3");
+		doThrow(new TaskRejectedException("full")).when(processor).process(dto);
 
-        try {
-            transactionTemplate.executeWithoutResult(status -> eventPublisher.publishEvent(dto));
+		try {
+			transactionTemplate.executeWithoutResult(status -> eventPublisher.publishEvent(dto));
 
-            Track saved = trackRepository.findById(trackId).orElseThrow();
-            assertThat(saved.getStatus()).isEqualTo(TrackStatus.FAILED);
-            assertThat(saved.getErrorMessage()).isEqualTo("TRANSCODE_QUEUE_FULL");
-        } finally {
-            trackRepository.deleteById(trackId);
-        }
-    }
+			Track saved = trackRepository.findById(trackId).orElseThrow();
+			assertThat(saved.getStatus()).isEqualTo(TrackStatus.FAILED);
+			assertThat(saved.getErrorMessage()).isEqualTo("TRANSCODE_QUEUE_FULL");
+		} finally {
+			trackRepository.deleteById(trackId);
+		}
+	}
 }
