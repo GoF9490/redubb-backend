@@ -30,6 +30,26 @@ class LogTailBufferTest {
 	}
 
 	@Test
+	@DisplayName("정확히 한도 길이의 입력은 전부 보관한다")
+	void keepInputOfExactMaxLength() {
+		LogTailBuffer buffer = new LogTailBuffer(10);
+
+		appendText(buffer, "0123456789");
+
+		assertThat(buffer.toString()).isEqualTo("0123456789");
+	}
+
+	@Test
+	@DisplayName("보관된 로그의 앞뒤 공백은 제거한다")
+	void stripSurroundingWhitespace() {
+		LogTailBuffer buffer = new LogTailBuffer(500);
+
+		appendText(buffer, "  error line \n");
+
+		assertThat(buffer.toString()).isEqualTo("error line");
+	}
+
+	@Test
 	@DisplayName("여러 번 나눠 넣어도 500자 이하를 유지한다")
 	void keepLimitAcrossAppends() {
 		LogTailBuffer buffer = new LogTailBuffer(500);

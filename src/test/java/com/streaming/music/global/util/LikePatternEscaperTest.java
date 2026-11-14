@@ -20,6 +20,12 @@ class LikePatternEscaperTest {
 	}
 
 	@Test
+	@DisplayName("null 입력은 빈 문자열로 처리한다")
+	void escapeNullAsEmptyString() {
+		assertThat(LikePatternEscaper.escapeLikePattern(null)).isEmpty();
+	}
+
+	@Test
 	@DisplayName("포함 검색 패턴은 앞뒤 공백을 제거하고 %로 감싼다")
 	void buildContainsPattern() {
 		assertThat(LikePatternEscaper.toContainsPattern("  a_b ")).isEqualTo("%a\\_b%");
