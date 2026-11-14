@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 9/16 Tasks 완료
+**📊 진행 상황**: 10/16 Tasks 완료
 
 ## 진행 보드
 
@@ -20,7 +20,7 @@
   - [x] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
   - [x] R2-2 `UserService`·`PlaybackLogService` 분리
   - [x] R2-3 `TrackService` 분리 및 테스트 통합
-  - [ ] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
+  - [x] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
 - Phase 3 — 설정값 외부화
   - [ ] R3-1 `AsyncProperties`·`TrackProperties` 도입
   - [ ] R3-2 `JwtProperties`·`CorsProperties` 확장
@@ -169,14 +169,14 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
   - [구현] `TrackUploadRollbackIntegrationTest` 등 통합 테스트가 구체 클래스를 `@MockitoBean`/`@Autowired`하고 있으면 인터페이스 타입으로 바꾼다
   - [검토] 업로드 보상 처리(DB 실패 시 객체 삭제)가 `@Transactional` 프록시 경계에 의존하는지, 분리 후에도 같은지 확인
 
-### [ ] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
+### [x] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
 - **목표:** 기존 `TranscodeProcessor` 인터페이스를 `HlsTranscodeService` 인터페이스로 이름을 바꿔 합치고, 구현을 `HlsTranscodeServiceImpl`로 옮긴다. 테스트는 `HlsTranscodeServiceImplTest`로 바꾼다.
 - **선행:** R2-3
 - **완료 조건:** (테스트: **단위 테스트 필수**)
-  - [ ] `TranscodeProcessor` 제거, `TranscodeEventRelay`·`TranscodeRejectionHandler`·`TranscodeRecoveryRunner`가 `HlsTranscodeService` 타입을 주입받음
-  - [ ] `HlsTranscodeServiceImplTest`: §8 시나리오(성공 시 READY·`hlsPlaylistKey`, 실패 시 FAILED·임시 폴더 삭제, 타임아웃 시 `FFMPEG_TIMEOUT`) 포함
-  - [ ] `Transcode*IntegrationTest` 통과(비동기·큐 포화 동작 보존)
-  - [ ] `./gradlew build` 통과
+  - [x] `TranscodeProcessor` 제거, `TranscodeEventRelay`가 `HlsTranscodeService` 타입을 주입받음(`TranscodeRejectionHandler`·`TranscodeRecoveryRunner`는 변환 서비스를 주입받지 않아 변경 없음. R2-4 계획 단계에서 확인)
+  - [x] `HlsTranscodeServiceImplTest`: §8 시나리오(성공 시 READY·`hlsPlaylistKey`, 실패 시 FAILED·임시 폴더 삭제, 타임아웃 시 `FFMPEG_TIMEOUT`) 포함
+  - [x] `Transcode*IntegrationTest` 통과(비동기·큐 포화 동작 보존)
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [탐색] `@Async`가 인터페이스 메서드와 Impl 중 어디에 있는지, 프록시 방식(CGLIB 기본)에서 동작이 바뀌지 않는지 확인
   - [구현] `HlsTranscodeService.FFMPEG_TIMEOUT_MESSAGE` 같은 public 상수를 외부에서 참조하면 위치(인터페이스 vs Impl)를 정해 일관되게 옮긴다

@@ -6,7 +6,7 @@
 **📅 최종 업데이트**: 2026-11-14
 
 ## 현재 작업
-- Phase 2 진행 중(9/16). R2-3 완료, R2-4(`HlsTranscodeService` 분리, `TranscodeProcessor` 통합) PLAN 단계 진행. 사용자 지시 범위: ROADMAP 전체 자율 진행.
+- Phase 2 완료(10/16). Phase 3 R3-1(`AsyncProperties`·`TrackProperties` 도입) PLAN 단계 진행. 사용자 지시 범위: ROADMAP 전체 자율 진행.
 
 ## 완료한 작업
 - R0-1: `@Primary`(ab80674)는 이미 커밋돼 있어 추가 커밋 없음. 기준선 측정 — 테스트 클래스 57, 테스트 450, 실패·스킵 0. (c679e3f)
@@ -20,6 +20,7 @@
 - R2-1: `CustomOidcUserService`·`MinioStorageService`·`ApplicationEventTranscodeTaskDispatcher`를 `@Component`로 전환(어노테이션·import만 변경). `@Service`는 `UserService`·`PlaybackLogService`·`TrackService`·`HlsTranscodeService` 4개에만 남음. 메인 재검증 57/450·실패 0. (커밋 메시지 참고)
 - R2-2: `UserService`·`PlaybackLogService`를 인터페이스 + Impl로 분리. 인터페이스에 `@Transactional` 없음, `UserServiceImpl` 클래스 레벨 `@Transactional`·`PlaybackLogServiceImpl` `TransactionTemplate`(REQUIRES_NEW) 그대로. 소비자 소스 수정 없음. 테스트 `*ServiceImplTest`로 변경, `PlaybackLogServiceImplTest`에 DOWNLOAD 케이스 +1(테스트 기준선 451). 메인 재검증 57/451·실패 0. `UserTest`(Entity)는 R4-1에서 작성.
 - R2-3: `TrackService`를 인터페이스(5개 메서드) + `TrackServiceImpl`로 분리. `@Transactional(readOnly)`(getTracks·getTrack)·업로드 보상 처리(`TransactionTemplate`) 그대로. `getPlayInfo`/`getDownloadInfo`의 `this.getTrack` self-invocation은 기존 구조라 보존. 4개 서비스 테스트를 `TrackServiceImplTest`로 통합(`@Nested` Upload 24·Query 11·Play 7·Download 10, 메서드 47개·52건 유지). 메인이 통합 전후 테스트 본문을 대조해 fixture(생성자 구성) 외 차이 없음을 확인. 재검증 451·실패 0.
+- R2-4: `TranscodeProcessor`를 `HlsTranscodeService` 인터페이스로 통합, 구현은 `HlsTranscodeServiceImpl`. `@Async("transcodeExecutor")`는 Impl의 `process`에 유지(원래 `@Transactional` 없음), `FFMPEG_TIMEOUT_MESSAGE`는 Impl 유지. 실제 주입받는 main 클래스는 `TranscodeEventRelay` 하나뿐(ROADMAP 메모 정정). `HlsTranscodeServiceImplTest` 18건 유지. 에이전트 2회 + 메인 1회 `--rerun-tasks`로 비동기·큐 포화 통합 테스트 안정 확인(451·실패 0).
 
 ## 검토 필요 / 보고 사항
 - `CorsConfigTest`는 빈을 직접 생성해 `@Primary`를 증명하지 못함. 실질 증거는 `CorsEnabledTest`·`SecurityConfigTest`. 제거 시 `NoUniqueBeanDefinitionException` 재현은 하지 않음.
