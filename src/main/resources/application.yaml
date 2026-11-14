@@ -61,6 +61,16 @@ app:
     hls-audio-bitrate: 192k
     max-artwork-size-bytes: 10485760 # 커스텀 앨범자켓 최대 10MB
 
+  async: # AsyncProperties
+    transcode: # transcodeExecutor 스레드 풀 (§6.3-1)
+      core-pool-size: 1
+      max-pool-size: 2
+      queue-capacity: 50
+
+  track: # TrackProperties
+    default-page-size: 20 # GET /api/tracks 기본 size
+    max-page-size: 100    # GET /api/tracks 최대 size
+
   media: # MediaProperties
     public-base-url: ${MEDIA_PUBLIC_BASE_URL:} # streamUrl/artworkUrl 접두어. 기본값(빈 값) = 단일 오리진 상대경로("/stream/...")
 

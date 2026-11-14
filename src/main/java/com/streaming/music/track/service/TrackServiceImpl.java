@@ -2,6 +2,7 @@ package com.streaming.music.track.service;
 
 import com.streaming.music.global.properties.AudioProperties;
 import com.streaming.music.global.properties.StorageProperties;
+import com.streaming.music.global.properties.TrackProperties;
 import com.streaming.music.track.dto.response.DownloadInfo;
 import com.streaming.music.storage.service.StorageService;
 import com.streaming.music.transcode.service.TranscodeTaskDispatcher;
@@ -76,7 +77,6 @@ public class TrackServiceImpl implements TrackService {
 	static final int ALBUM_MAX_LENGTH = 200;
 	static final int FILENAME_MAX_LENGTH = 255;
 	static final String UNKNOWN_FILENAME = "unknown";
-	static final int MAX_PAGE_SIZE = 100;
 	static final int KEYWORD_MAX_LENGTH = 200;
 
 	private final StorageService storageService;
@@ -90,6 +90,7 @@ public class TrackServiceImpl implements TrackService {
 	private final MediaUrlResolver mediaUrlResolver;
 	private final PlaybackLogService playbackLogService;
 	private final StorageProperties storageProperties;
+	private final TrackProperties trackProperties;
 
 	public TrackServiceImpl(StorageService storageService,
 						AudioMetadataValidator audioMetadataValidator,
@@ -101,7 +102,9 @@ public class TrackServiceImpl implements TrackService {
 						PlatformTransactionManager transactionManager,
 						MediaUrlResolver mediaUrlResolver,
 						PlaybackLogService playbackLogService,
-						StorageProperties storageProperties) {
+						StorageProperties storageProperties,
+						TrackProperties trackProperties) {
+		this.trackProperties = trackProperties;
 		this.storageProperties = storageProperties;
 		this.mediaUrlResolver = mediaUrlResolver;
 		this.playbackLogService = playbackLogService;
@@ -195,16 +198,18 @@ public class TrackServiceImpl implements TrackService {
 	/**
 	 * 트랙 목록을 최신순(createdAt DESC)으로 조회한다.
 	 *
-	 * <p>size가 100을 넘으면 100으로 보정하고, page &lt; 0 또는 size &lt; 1이면 400으로 거부한다.
+	 * <p>size가 null이면 app.track.default-page-size를 적용하고, app.track.max-page-size를 넘으면 그 값으로 보정한다.
+	 * page &lt; 0 또는 size &lt; 1이면 400으로 거부한다.
 	 * keyword는 trim 후 200자를 넘으면 400이며, 비어 있으면 전체 조회로 처리한다.
 	 */
 	@Transactional(readOnly = true)
 	@Override
-	public Page<Track> getTracks(String keyword, TrackStatus status, int page, int size) {
+	public Page<Track> getTracks(String keyword, TrackStatus status, int page, Integer size) {
 		if (page < 0) {
 			throw new InvalidRequestException("page는 0 이상이어야 합니다.");
 		}
-		if (size < 1) {
+		int requestedSize = size != null ? size : trackProperties.defaultPageSize();
+		if (requestedSize < 1) {
 			throw new InvalidRequestException("size는 1 이상이어야 합니다.");
 		}
 		String trimmedKeyword = keyword == null ? "" : keyword.trim();
@@ -212,7 +217,7 @@ public class TrackServiceImpl implements TrackService {
 			throw new InvalidRequestException("keyword는 " + KEYWORD_MAX_LENGTH + "자를 초과할 수 없습니다.");
 		}
 
-		Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE));
+		Pageable pageable = PageRequest.of(page, Math.min(requestedSize, trackProperties.maxPageSize()));
 		if (trimmedKeyword.isEmpty()) {
 			return status == null
 					? trackRepository.findAllByOrderByCreatedAtDesc(pageable)

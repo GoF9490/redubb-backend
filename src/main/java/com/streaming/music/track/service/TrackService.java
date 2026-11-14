@@ -25,10 +25,11 @@ public interface TrackService {
 	/**
 	 * 트랙 목록을 최신순(createdAt DESC)으로 조회한다.
 	 *
-	 * <p>size가 100을 넘으면 100으로 보정하고, page &lt; 0 또는 size &lt; 1이면 400으로 거부한다.
+	 * <p>size가 null이면 app.track.default-page-size를 적용하고, app.track.max-page-size를 넘으면 그 값으로 보정한다.
+	 * page &lt; 0 또는 size &lt; 1이면 400으로 거부한다.
 	 * keyword는 trim 후 200자를 넘으면 400이며, 비어 있으면 전체 조회로 처리한다.
 	 */
-	Page<Track> getTracks(String keyword, TrackStatus status, int page, int size);
+	Page<Track> getTracks(String keyword, TrackStatus status, int page, Integer size);
 
 	/** 트랙 단건을 조회한다. 모든 status를 허용하며 없으면 TrackNotFoundException. */
 	Track getTrack(UUID trackId);

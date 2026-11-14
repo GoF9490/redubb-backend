@@ -202,7 +202,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("무효 토큰·Basic 헤더로도 /api/tracks는 차단되지 않고 컨트롤러까지 도달해 200이다")
 	void notBlockTracksWithInvalidToken() throws Exception {
-		when(trackService.getTracks(any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
+		when(trackService.getTracks(any(), any(), anyInt(), any())).thenReturn(Page.empty());
 		List<String> headers = List.of("Bearer " + forgedToken(), "Bearer " + expiredToken(),
 				"Bearer not-a-jwt", "Basic dXNlcjpwYXNz");
 
@@ -211,6 +211,6 @@ class AuthControllerTest {
 					.andExpect(status().isOk());
 		}
 		verify(trackService, org.mockito.Mockito.times(headers.size()))
-				.getTracks(any(), any(), anyInt(), anyInt());
+				.getTracks(any(), any(), anyInt(), any());
 	}
 }

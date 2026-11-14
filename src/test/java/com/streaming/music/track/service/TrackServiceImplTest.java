@@ -25,6 +25,7 @@ import com.streaming.music.global.exception.TrackNotFoundException;
 import com.streaming.music.global.exception.TrackNotReadyException;
 import com.streaming.music.global.properties.AudioProperties;
 import com.streaming.music.global.properties.StorageProperties;
+import com.streaming.music.global.properties.TrackProperties;
 import com.streaming.music.global.util.LikePatternEscaper;
 import com.streaming.music.playback.entity.ActionType;
 import com.streaming.music.playback.service.PlaybackLogService;
@@ -75,6 +76,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 @ExtendWith(MockitoExtension.class)
 class TrackServiceImplTest {
 
+	private static final StorageProperties DEFAULT_STORAGE_PROPERTIES =
+			new StorageProperties("http://rustfs:9000", "us-east-1", "ak", "sk", "audio-storage", 60);
 	private static final byte[] CUSTOM_ARTWORK = {1, 2, 3};
 	private static final byte[] EMBEDDED_ARTWORK = {9, 8, 7};
 	private static final String SIGNED_QUERY =
@@ -115,9 +118,13 @@ class TrackServiceImplTest {
 	}
 
 	private TrackService createTrackService(StorageProperties storageProperties) {
+		return createTrackService(storageProperties, new TrackProperties(20, 100));
+	}
+
+	private TrackService createTrackService(StorageProperties storageProperties, TrackProperties trackProperties) {
 		return new TrackServiceImpl(storageService, audioMetadataValidator, transcodeTaskDispatcher,
 				trackRepository, userRepository, audioProperties, clock, transactionManager,
-				mediaUrlResolver, playbackLogService, storageProperties);
+				mediaUrlResolver, playbackLogService, storageProperties, trackProperties);
 	}
 
 	@Nested
@@ -605,6 +612,47 @@ class TrackServiceImplTest {
 			assertThat(captureFindAllPageable().getPageSize()).isEqualTo(100);
 		}
 
+
+		@Test
+		@DisplayName("size가 null이면 설정된 기본 페이지 크기로 조회한다")
+		void getTracksUsesDefaultPageSizeWhenSizeIsNull() {
+			when(trackRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(emptyPage());
+
+			trackService.getTracks(null, null, 0, null);
+
+			assertThat(captureFindAllPageable().getPageSize()).isEqualTo(20);
+		}
+
+		@Test
+		@DisplayName("기본 페이지 크기는 하드코딩이 아니라 설정값을 따른다")
+		void getTracksUsesConfiguredDefaultPageSize() {
+			trackService = createTrackService(DEFAULT_STORAGE_PROPERTIES, new TrackProperties(30, 100));
+			when(trackRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(emptyPage());
+
+			trackService.getTracks(null, null, 0, null);
+
+			assertThat(captureFindAllPageable().getPageSize()).isEqualTo(30);
+		}
+
+		@Test
+		@DisplayName("최대 페이지 크기는 설정값으로 제한한다")
+		void getTracksClampsSizeToConfiguredMax() {
+			trackService = createTrackService(DEFAULT_STORAGE_PROPERTIES, new TrackProperties(20, 50));
+			when(trackRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(emptyPage());
+
+			trackService.getTracks(null, null, 0, 100);
+
+			assertThat(captureFindAllPageable().getPageSize()).isEqualTo(50);
+		}
+
+		@Test
+		@DisplayName("명시한 size가 0이면 기본값으로 대체하지 않고 INVALID_REQUEST 예외를 던진다")
+		void getTracksRejectsExplicitZeroSizeEvenWithDefault() {
+			assertThatThrownBy(() -> trackService.getTracks(null, null, 0, 0))
+					.isInstanceOf(InvalidRequestException.class);
+
+			verifyNoInteractions(trackRepository);
+		}
 		@Test
 		@DisplayName("page가 음수이면 INVALID_REQUEST 예외이고 조회하지 않는다")
 		void getTracksRejectsNegativePage() {

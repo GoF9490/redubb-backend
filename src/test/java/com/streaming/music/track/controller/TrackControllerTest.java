@@ -168,17 +168,17 @@ class TrackControllerTest {
 	}
 
 	private void stubEmptyPage() {
-		when(trackService.getTracks(any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
+		when(trackService.getTracks(any(), any(), anyInt(), any())).thenReturn(Page.empty());
 	}
 
 	@Test
-	@DisplayName("파라미터가 없으면 기본값 page 0, size 20으로 서비스를 호출한다")
+	@DisplayName("파라미터가 없으면 page 0, size 미지정(null)으로 서비스를 호출한다")
 	void returnPageWithDefaults() throws Exception {
 		stubEmptyPage();
 
 		mockMvc.perform(get("/api/tracks")).andExpect(status().isOk());
 
-		verify(trackService).getTracks(isNull(), isNull(), eq(0), eq(20));
+		verify(trackService).getTracks(isNull(), isNull(), eq(0), isNull());
 	}
 
 	@Test
@@ -211,14 +211,14 @@ class TrackControllerTest {
 		mockMvc.perform(get("/api/tracks").param("status", "").param("keyword", ""))
 				.andExpect(status().isOk());
 
-		verify(trackService).getTracks(eq(""), isNull(), eq(0), eq(20));
+		verify(trackService).getTracks(eq(""), isNull(), eq(0), isNull());
 	}
 
 	@Test
 	@DisplayName("목록 응답은 고정 스키마 6개 키이며 항목에 errorMessage가 없다")
 	void returnFixedPageSchema() throws Exception {
 		Track track = createTrack();
-		when(trackService.getTracks(any(), any(), anyInt(), anyInt()))
+		when(trackService.getTracks(any(), any(), anyInt(), any()))
 				.thenReturn(new PageImpl<>(List.of(track), PageRequest.of(0, 1), 3));
 		when(mediaUrlResolver.resolveArtworkUrl(track)).thenReturn("/artwork/k.jpg");
 
@@ -274,7 +274,7 @@ class TrackControllerTest {
 	@Test
 	@DisplayName("서비스의 InvalidRequestException은 400 INVALID_REQUEST이다")
 	void rejectNegativePage() throws Exception {
-		when(trackService.getTracks(any(), any(), anyInt(), anyInt())).thenThrow(new InvalidRequestException());
+		when(trackService.getTracks(any(), any(), anyInt(), any())).thenThrow(new InvalidRequestException());
 
 		mockMvc.perform(get("/api/tracks").param("page", "-1"))
 				.andExpect(status().isBadRequest())

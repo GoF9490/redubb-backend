@@ -54,14 +54,14 @@ public class TrackController {
 	/**
 	 * 음원 목록·키워드 검색 조회 (최신순).
 	 *
-	 * <p>읽기 전용 공개 조회로 인증(T6-7)과 무관하다. page/size 보정과 검증은 서비스 책임이므로 그대로 전달한다.
+	 * <p>읽기 전용 공개 조회로 인증(T6-7)과 무관하다. page/size 보정·기본값 적용과 검증은 서비스 책임이므로 그대로 전달한다.
 	 */
 	@GetMapping
 	public TrackPageResponse getTracks(
 			@RequestParam(name = "keyword", required = false) String keyword,
 			@RequestParam(name = "status", required = false) TrackStatus status,
 			@RequestParam(name = "page", defaultValue = "0") int page,
-			@RequestParam(name = "size", defaultValue = "20") int size) {
+			@RequestParam(name = "size", required = false) Integer size) {
 		return TrackPageResponse.from(trackService.getTracks(keyword, status, page, size), mediaUrlResolver);
 	}
 

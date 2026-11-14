@@ -2,6 +2,7 @@ package com.streaming.music.global.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.streaming.music.global.properties.AsyncProperties;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,7 +13,7 @@ class AsyncConfigTest {
 	@Test
 	@DisplayName("transcodeExecutor는 core 1, max 2, queue 50, 스레드 접두사 transcode-로 구성된다")
 	void createsTranscodeExecutorWithConfiguredSizes() {
-		ThreadPoolTaskExecutor executor = new AsyncConfig().transcodeExecutor();
+		ThreadPoolTaskExecutor executor = new AsyncConfig().transcodeExecutor(new AsyncProperties(new AsyncProperties.Transcode(1, 2, 50)));
 		executor.initialize();
 		try {
 			assertThat(executor.getCorePoolSize()).isEqualTo(1);
@@ -27,7 +28,7 @@ class AsyncConfigTest {
 	@Test
 	@DisplayName("거부 정책은 기본 AbortPolicy를 유지한다")
 	void keepsAbortPolicyAsRejectionHandler() {
-		ThreadPoolTaskExecutor executor = new AsyncConfig().transcodeExecutor();
+		ThreadPoolTaskExecutor executor = new AsyncConfig().transcodeExecutor(new AsyncProperties(new AsyncProperties.Transcode(1, 2, 50)));
 		executor.initialize();
 		try {
 			assertThat(executor.getThreadPoolExecutor().getRejectedExecutionHandler())

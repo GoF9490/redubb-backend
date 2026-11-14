@@ -14,3 +14,8 @@ app:
   storage:
     access-key: test-access-key
     secret-key: test-secret-key
+  async:
+    transcode:
+      core-pool-size: 1
+      max-pool-size: 2
+      queue-capacity: 50

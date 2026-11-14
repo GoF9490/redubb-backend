@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.streaming.music.global.config.AsyncConfig;
+import com.streaming.music.global.properties.AsyncProperties;
 import com.streaming.music.track.entity.Track;
 import com.streaming.music.track.entity.TrackStatus;
 import java.nio.file.Files;
@@ -16,6 +16,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * 실제 {@code transcodeExecutor}(core 1 / max 2 / queue 50)를 FFmpeg Mock 블록으로 점유해
@@ -23,6 +24,9 @@ import org.junit.jupiter.api.Test;
  * 수용 한도는 실행 2 + 대기 50 = 52건이고 53번째가 거부된다.
  */
 class TranscodeQueueSaturationIntegrationTest extends TranscodeIntegrationTestBase {
+
+	@Autowired
+	private AsyncProperties asyncProperties;
 
 	private final CountDownLatch release = new CountDownLatch(1);
 
@@ -34,8 +38,9 @@ class TranscodeQueueSaturationIntegrationTest extends TranscodeIntegrationTestBa
 	@Test
 	@DisplayName("풀과 큐가 가득 차면 다음 작업은 거부되어 FAILED(TRANSCODE_QUEUE_FULL)로 기록되고 나머지는 정상 완료된다")
 	void marksTrackFailedWhenExecutorSaturated() throws InterruptedException {
-		int capacity = AsyncConfig.MAX_POOL_SIZE + AsyncConfig.QUEUE_CAPACITY;
-		CountDownLatch running = new CountDownLatch(AsyncConfig.MAX_POOL_SIZE);
+		int maxPoolSize = asyncProperties.transcode().maxPoolSize();
+		int capacity = maxPoolSize + asyncProperties.transcode().queueCapacity();
+		CountDownLatch running = new CountDownLatch(maxPoolSize);
 		when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenAnswer(invocation -> {
 			running.countDown();
 			if (!release.await(30, TimeUnit.SECONDS)) {
