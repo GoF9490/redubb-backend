@@ -10,7 +10,7 @@ import com.streaming.music.dto.response.DownloadInfo;
 import com.streaming.music.entity.ActionType;
 import com.streaming.music.entity.PlaybackLog;
 import com.streaming.music.entity.User;
-import com.streaming.music.exception.StorageException;
+import com.streaming.music.global.exception.StorageException;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;

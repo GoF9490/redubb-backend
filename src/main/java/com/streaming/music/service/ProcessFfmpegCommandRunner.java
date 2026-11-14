@@ -1,6 +1,7 @@
 package com.streaming.music.service;
 
-import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.global.properties.AudioProperties;
+import com.streaming.music.global.util.LogTailBuffer;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;

@@ -23,9 +23,9 @@ import org.jaudiotagger.tag.images.Artwork;
 import org.apache.tika.io.TikaInputStream;
 import org.springframework.stereotype.Component;
 
-import com.streaming.music.config.properties.AudioProperties;
-import com.streaming.music.exception.InvalidArtworkException;
-import com.streaming.music.exception.InvalidAudioFormatException;
+import com.streaming.music.global.properties.AudioProperties;
+import com.streaming.music.global.exception.InvalidArtworkException;
+import com.streaming.music.global.exception.InvalidAudioFormatException;
 
 /**
  * 업로드 음원/앨범자켓 검증기 (PRD-05 §6.1).

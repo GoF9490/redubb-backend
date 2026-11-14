@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.entity.User;
-import com.streaming.music.exception.ErrorCode;
-import com.streaming.music.exception.UnauthorizedException;
+import com.streaming.music.global.exception.ErrorCode;
+import com.streaming.music.global.exception.UnauthorizedException;
 import com.streaming.music.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;

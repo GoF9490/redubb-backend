@@ -2,6 +2,7 @@ package com.streaming.music.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.streaming.music.global.util.LikePatternEscaper;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
 import java.time.Instant;

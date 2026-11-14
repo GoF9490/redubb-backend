@@ -2,6 +2,7 @@ package com.streaming.music.repository;
 
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
+import com.streaming.music.global.util.LikePatternEscaper;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Page;

@@ -1,6 +1,6 @@
 package com.streaming.music.service;
 
-import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.global.properties.AudioProperties;
 import com.streaming.music.repository.TrackRepository;
 import java.time.Clock;
 import java.time.Duration;

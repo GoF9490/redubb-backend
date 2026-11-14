@@ -1,6 +1,6 @@
 package com.streaming.music.service;
 
-import com.streaming.music.config.properties.MediaProperties;
+import com.streaming.music.global.properties.MediaProperties;
 import com.streaming.music.entity.Track;
 import java.util.Objects;
 import org.springframework.stereotype.Component;

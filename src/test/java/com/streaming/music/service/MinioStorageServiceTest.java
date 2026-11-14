@@ -10,9 +10,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.streaming.music.config.properties.StorageProperties;
-import com.streaming.music.exception.ErrorCode;
-import com.streaming.music.exception.StorageException;
+import com.streaming.music.global.properties.StorageProperties;
+import com.streaming.music.global.exception.ErrorCode;
+import com.streaming.music.global.exception.StorageException;
 import io.minio.BucketExistsArgs;
 import io.minio.DownloadObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;

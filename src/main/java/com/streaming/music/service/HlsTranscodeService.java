@@ -1,7 +1,7 @@
 package com.streaming.music.service;
 
-import com.streaming.music.config.AsyncConfig;
-import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.global.config.AsyncConfig;
+import com.streaming.music.global.properties.AudioProperties;
 import com.streaming.music.dto.event.TranscodeEventDto;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;

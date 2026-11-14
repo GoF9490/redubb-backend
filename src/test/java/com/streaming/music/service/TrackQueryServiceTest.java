@@ -9,13 +9,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.streaming.music.config.properties.AudioProperties;
-import com.streaming.music.config.properties.StorageProperties;
+import com.streaming.music.global.properties.AudioProperties;
+import com.streaming.music.global.properties.StorageProperties;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
-import com.streaming.music.exception.InvalidRequestException;
-import com.streaming.music.exception.TrackNotFoundException;
-import com.streaming.music.repository.LikePatternEscaper;
+import com.streaming.music.global.exception.InvalidRequestException;
+import com.streaming.music.global.exception.TrackNotFoundException;
+import com.streaming.music.global.util.LikePatternEscaper;
 import com.streaming.music.repository.TrackRepository;
 import com.streaming.music.repository.UserRepository;
 import java.time.Clock;

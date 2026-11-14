@@ -2,7 +2,7 @@ package com.streaming.music.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.global.properties.AudioProperties;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

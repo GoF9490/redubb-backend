@@ -1,7 +1,7 @@
 package com.streaming.music.service;
 
-import com.streaming.music.config.properties.AudioProperties;
-import com.streaming.music.config.properties.StorageProperties;
+import com.streaming.music.global.properties.AudioProperties;
+import com.streaming.music.global.properties.StorageProperties;
 import com.streaming.music.dto.response.DownloadInfo;
 import com.streaming.music.dto.event.TranscodeEventDto;
 import com.streaming.music.dto.request.TrackUploadRequest;
@@ -10,11 +10,13 @@ import com.streaming.music.entity.ActionType;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
 import com.streaming.music.entity.User;
-import com.streaming.music.exception.InvalidArtworkException;
-import com.streaming.music.exception.InvalidRequestException;
-import com.streaming.music.exception.TrackNotFoundException;
-import com.streaming.music.exception.TrackNotReadyException;
-import com.streaming.music.repository.LikePatternEscaper;
+import com.streaming.music.global.exception.InvalidArtworkException;
+import com.streaming.music.global.exception.InvalidRequestException;
+import com.streaming.music.global.exception.TrackNotFoundException;
+import com.streaming.music.global.exception.TrackNotReadyException;
+import com.streaming.music.global.util.LikePatternEscaper;
+import com.streaming.music.global.util.ContentDispositionBuilder;
+import com.streaming.music.global.util.InternalRedirectPathConverter;
 import com.streaming.music.repository.TrackRepository;
 import com.streaming.music.repository.UserRepository;
 import com.streaming.music.service.AudioMetadataValidator.AudioMetadata;

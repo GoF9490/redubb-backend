@@ -9,7 +9,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.streaming.music.entity.PlaybackLog;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.User;
-import com.streaming.music.security.JwtTokenProvider;
+import com.streaming.music.global.security.JwtTokenProvider;
 import com.streaming.music.support.SampleFixtures;
 import java.util.List;
 import java.util.UUID;

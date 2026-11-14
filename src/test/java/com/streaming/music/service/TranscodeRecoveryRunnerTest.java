@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.global.properties.AudioProperties;
 import com.streaming.music.repository.TrackRepository;
 import java.time.Clock;
 import java.time.Instant;

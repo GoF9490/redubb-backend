@@ -2,7 +2,7 @@ package com.streaming.music.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.streaming.music.config.properties.MediaProperties;
+import com.streaming.music.global.properties.MediaProperties;
 import com.streaming.music.entity.Track;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;

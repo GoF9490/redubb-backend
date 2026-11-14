@@ -14,9 +14,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.streaming.music.config.properties.AudioProperties;
-import com.streaming.music.exception.InvalidArtworkException;
-import com.streaming.music.exception.InvalidAudioFormatException;
+import com.streaming.music.global.properties.AudioProperties;
+import com.streaming.music.global.exception.InvalidArtworkException;
+import com.streaming.music.global.exception.InvalidAudioFormatException;
 import com.streaming.music.service.AudioMetadataValidator.AudioMetadata;
 import com.streaming.music.service.AudioMetadataValidator.AudioValidationResult;
 import com.streaming.music.service.AudioMetadataValidator.MetadataOverrides;

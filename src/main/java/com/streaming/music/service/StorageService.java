@@ -4,7 +4,7 @@ import java.nio.file.Path;
 
 /**
  * 오브젝트 스토리지(RustFS, S3 호환) 추상화. 서비스 단위 테스트에서는 Mock으로 대체한다.
- * 스토리지 연산 실패는 {@link com.streaming.music.exception.StorageException}으로 변환된다.
+ * 스토리지 연산 실패는 {@link com.streaming.music.global.exception.StorageException}으로 변환된다.
  */
 public interface StorageService {
 

@@ -7,7 +7,7 @@ import com.streaming.music.dto.response.TrackPageResponse;
 import com.streaming.music.dto.response.TrackResponse;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
-import com.streaming.music.security.AuthenticatedUser;
+import com.streaming.music.global.security.AuthenticatedUser;
 import com.streaming.music.service.MediaUrlResolver;
 import com.streaming.music.service.TrackService;
 import java.util.UUID;

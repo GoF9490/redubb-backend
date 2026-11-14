@@ -1,8 +1,8 @@
 package com.streaming.music.controller;
 
 import com.streaming.music.dto.response.UserResponse;
-import com.streaming.music.exception.UnauthorizedException;
-import com.streaming.music.security.AuthenticatedUser;
+import com.streaming.music.global.exception.UnauthorizedException;
+import com.streaming.music.global.security.AuthenticatedUser;
 import com.streaming.music.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

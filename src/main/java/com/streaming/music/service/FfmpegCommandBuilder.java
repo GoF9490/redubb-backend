@@ -1,6 +1,6 @@
 package com.streaming.music.service;
 
-import com.streaming.music.config.properties.AudioProperties;
+import com.streaming.music.global.properties.AudioProperties;
 import java.nio.file.Path;
 import java.util.List;
 import org.springframework.stereotype.Component;

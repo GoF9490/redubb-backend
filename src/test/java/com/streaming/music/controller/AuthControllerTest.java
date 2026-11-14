@@ -9,14 +9,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.streaming.music.config.SecurityConfig;
-import com.streaming.music.config.properties.JwtProperties;
+import com.streaming.music.global.config.SecurityConfig;
+import com.streaming.music.global.properties.JwtProperties;
 import com.streaming.music.entity.User;
-import com.streaming.music.exception.GlobalExceptionHandler;
-import com.streaming.music.exception.UnauthorizedException;
-import com.streaming.music.security.CustomOidcUserService;
-import com.streaming.music.security.JwtTokenProvider;
-import com.streaming.music.security.RestAuthenticationEntryPoint;
+import com.streaming.music.global.exception.GlobalExceptionHandler;
+import com.streaming.music.global.exception.UnauthorizedException;
+import com.streaming.music.global.security.CustomOidcUserService;
+import com.streaming.music.global.security.JwtTokenProvider;
+import com.streaming.music.global.security.RestAuthenticationEntryPoint;
 import com.streaming.music.service.MediaUrlResolver;
 import com.streaming.music.service.TrackService;
 import com.streaming.music.service.UserService;
