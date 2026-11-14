@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 2/16 Tasks 완료
+**📊 진행 상황**: 3/16 Tasks 완료
 
 ## 진행 보드
 
@@ -12,7 +12,7 @@
   - [x] R0-1 미커밋 변경 정리 및 기준선 측정
   - [x] R0-2 들여쓰기 탭 전환
 - Phase 1 — 도메인별 패키지 전환
-  - [ ] R1-1 `global` 패키지 구성
+  - [x] R1-1 `global` 패키지 구성
   - [ ] R1-2 `user`·`playback` 도메인 이동
   - [ ] R1-3 `storage`·`transcode` 도메인 이동
   - [ ] R1-4 `track` 도메인 이동
@@ -78,16 +78,16 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
 
 > 공통 주의: 같은 패키지라서 쓸 수 있던 **package-private 멤버**(`static final` 상수, 생성자, 메서드)가 이동 후 컴파일 오류를 낸다. 접근 범위를 넓히기 전에 그 멤버가 꼭 다른 패키지에 보여야 하는지 먼저 판단한다. 테스트도 대상과 같은 패키지 구조로 함께 옮긴다.
 
-### [ ] R1-1 `global` 패키지 구성
+### [x] R1-1 `global` 패키지 구성
 - **목표:** 공통 코드를 `global/` 아래로 옮긴다.
   - `config/*` → `global/config`, `config/properties/*` → `global/properties`
   - `exception/*` → `global/exception`, `security/*` → `global/security`
   - Util → `global/util`: `ContentDispositionBuilder`, `InternalRedirectPathConverter`(현재 `service`), `LikePatternEscaper`(현재 `repository`), `LogTailBuffer`(현재 `service`)
 - **선행:** R0-2
 - **완료 조건:** (테스트: 기존 테스트 이동 + 실행)
-  - [ ] PRD-05 §5 트리의 `global/` 구성과 일치
-  - [ ] 해당 테스트(`config`·`exception`·`security`·Util 테스트)가 같은 구조로 이동
-  - [ ] `./gradlew build` 통과
+  - [x] PRD-05 §5 트리의 `global/` 구성과 일치
+  - [x] 해당 테스트(`config`·`exception`·`security`·Util 테스트)가 같은 구조로 이동
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [탐색] `@ConfigurationPropertiesScan`/`@EnableConfigurationProperties` 대상 경로, `SecurityConfig`가 `new`로 만드는 빈이 패키지에 의존하는지 확인
   - [구현] `ContentDispositionBuilder.FILENAME_MAX_LENGTH`, `InternalRedirectPathConverter.INTERNAL_PREFIX`가 package-private이다. 다른 패키지 참조 여부 확인
