@@ -6,7 +6,7 @@
 **📅 최종 업데이트**: 2026-11-14
 
 ## 현재 작업
-- Phase 1 완료(6/16). 사용자 지시 범위는 Phase 1까지이므로 Phase 2(R2-1)는 시작하지 않음.
+- Phase 2 진행 중(7/16). R2-1 완료, R2-2(`UserService`·`PlaybackLogService` 분리) PLAN 단계 진행. 사용자 지시 범위: ROADMAP 전체 자율 진행.
 
 ## 완료한 작업
 - R0-1: `@Primary`(ab80674)는 이미 커밋돼 있어 추가 커밋 없음. 기준선 측정 — 테스트 클래스 57, 테스트 450, 실패·스킵 0. (c679e3f)
@@ -17,6 +17,7 @@
 - R1-2: `User`·`PlaybackLog` 계열 메인 10 + 테스트 5를 `user/`·`playback/`으로 이동(`git mv`). package/import 외 변경 없음, 접근 제어자 확장 없음. `EntityMappingTest`는 R1-4까지 `entity/` 유지, `AuthControllerTest`는 `user/controller`로 이동. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
 - R1-3: `storage/service`(3), `transcode/service`(11), `transcode/dto`(`TranscodeEventDto`) 이동 + 테스트 13개. `TranscodeIntegrationTestBase`만 `public abstract`로 확장(타 패키지의 Track 통합 테스트가 상속). `FakeProcessMain`·`SampleFixtures`·테스트 리소스는 `support`에 유지. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
 - R1-4: `Track` 계열 메인 12 + 테스트 16을 `track/`으로 이동, 레이어 패키지(`controller`·`service`·`repository`·`entity`·`dto`) 제거. `TrackRepository` JPQL 문자열 FQN 3곳을 `track.entity.TrackStatus`로 수정. `EntityMappingTest`는 `track/entity`로 이동. 테스트 루트의 `support/`·`MusicApplicationTests`는 유지(완료 조건은 메인 소스 기준). 접근 제어자 확장 없음. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
+- R2-1: `CustomOidcUserService`·`MinioStorageService`·`ApplicationEventTranscodeTaskDispatcher`를 `@Component`로 전환(어노테이션·import만 변경). `@Service`는 `UserService`·`PlaybackLogService`·`TrackService`·`HlsTranscodeService` 4개에만 남음. 메인 재검증 57/450·실패 0. (커밋 메시지 참고)
 
 ## 검토 필요 / 보고 사항
 - `CorsConfigTest`는 빈을 직접 생성해 `@Primary`를 증명하지 못함. 실질 증거는 `CorsEnabledTest`·`SecurityConfigTest`. 제거 시 `NoUniqueBeanDefinitionException` 재현은 하지 않음.
@@ -25,7 +26,7 @@
 - 환경: python 없음(grep/awk/sed 사용), `core.autocrlf=true`로 LF→CRLF 경고 출력(내용 영향 없음, 작업 트리·인덱스는 LF).
 
 ## 다음 작업
-- Phase 2: R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환 (선행 R1-4 완료)
+- R2-2 `UserService`·`PlaybackLogService` 분리 → R2-3 → R2-4 → Phase 3 → Phase 4 → R5-1 (ROADMAP 끝까지 자율 진행)
 
 ## 작업 원칙 (사용자 지시)
 - 기존 테스트 코드는 ROADMAP 후반(R4-2)에서 삭제된다. 그 전까지는 수정·이동한 코드에 대해 **기존 테스트를 직접 실행하며 검토**한다(에이전트 보고에 의존하지 않고 메인이 `./gradlew build --rerun-tasks` 또는 해당 테스트를 재실행해 통과와 테스트 수를 확인). 삭제 전까지가 회귀 안전망이다.

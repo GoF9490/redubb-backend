@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 6/16 Tasks 완료
+**📊 진행 상황**: 7/16 Tasks 완료
 
 ## 진행 보드
 
@@ -17,7 +17,7 @@
   - [x] R1-3 `storage`·`transcode` 도메인 이동
   - [x] R1-4 `track` 도메인 이동
 - Phase 2 — Service 인터페이스/Impl 분리
-  - [ ] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
+  - [x] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
   - [ ] R2-2 `UserService`·`PlaybackLogService` 분리
   - [ ] R2-3 `TrackService` 분리 및 테스트 통합
   - [ ] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
@@ -134,12 +134,12 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
 
 ## Phase 2 — Service 인터페이스/Impl 분리 (spring-java.md §2)
 
-### [ ] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
+### [x] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
 - **목표:** `@Service`가 붙은 비도메인 클래스 `CustomOidcUserService`, `ApplicationEventTranscodeTaskDispatcher`, `MinioStorageService`를 `@Component`로 바꾼다.
 - **선행:** R1-4
 - **완료 조건:** (테스트: 기존 테스트 실행만, 신규 작성 없음)
-  - [ ] `@Service`가 `XxxServiceImpl`이 될 클래스(`UserService`, `PlaybackLogService`, `TrackService`, `HlsTranscodeService`)에만 남음
-  - [ ] `./gradlew build` 통과
+  - [x] `@Service`가 `XxxServiceImpl`이 될 클래스(`UserService`, `PlaybackLogService`, `TrackService`, `HlsTranscodeService`)에만 남음
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [검토] `@Component`로 바꾼 클래스의 기존 테스트(`CustomOidcUserServiceTest`, `MinioStorageServiceTest` 등)는 R4-2에서 삭제한다. 지금은 유지
 
