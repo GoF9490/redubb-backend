@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 13/16 Tasks 완료
+**📊 진행 상황**: 14/16 Tasks 완료
 
 ## 진행 보드
 
@@ -26,7 +26,7 @@
   - [x] R3-2 `JwtProperties`·`CorsProperties` 확장
   - [x] R3-3 `AudioProperties` 확장
 - Phase 4 — 테스트 범위 정리
-  - [ ] R4-1 허용 범위 단위 테스트 보강
+  - [x] R4-1 허용 범위 단위 테스트 보강
   - [ ] R4-2 비허용 테스트 삭제
 - Phase 5 — 최종 검토
   - [ ] R5-1 규칙 준수 감사 및 문서 동기화
@@ -240,16 +240,16 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
 
 ## Phase 4 — 테스트 범위 정리 (spring-java.md §3, PRD-05 §8)
 
-### [ ] R4-1 허용 범위 단위 테스트 보강
+### [x] R4-1 허용 범위 단위 테스트 보강
 - **목표:** PRD-05 §8 표에서 아직 없는 테스트를 채운다.
   - `UserTest`(Entity): 재로그인 시 `email`·`profileImageUrl`·`lastLoginAt` 갱신
   - `TrackTest`: 상태 전이 허용·금지, READY 시 `hlsPlaylistKey`, FAILED 시 `errorMessage`
   - Util 4종(`ContentDispositionBuilderTest`, `InternalRedirectPathConverterTest`, `LikePatternEscaperTest`, `LogTailBufferTest`)이 `global/util` 경로에 있고 §8 시나리오를 포함하는지
 - **선행:** Phase 3 완료
 - **완료 조건:** (테스트: **단위 테스트 필수**)
-  - [ ] §8 표의 모든 클래스·시나리오에 대응하는 테스트 존재(체크리스트로 대조)
-  - [ ] 모두 Spring 컨텍스트 없이 실행
-  - [ ] `./gradlew build` 통과
+  - [x] §8 표의 모든 클래스·시나리오에 대응하는 테스트 존재(체크리스트로 대조)
+  - [x] 모두 Spring 컨텍스트 없이 실행
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [탐색] `TrackStatus`, `ActionType` Enum에 로직이 있으면 Enum 테스트도 대상이다
 
