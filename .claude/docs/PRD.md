@@ -15,7 +15,7 @@
 | 파일 | 범위 | 백엔드 관점 역할 | 버전 | 상태 |
 |---|---|---|---|---|
 | `PRD-01.md` | 전체 구조 및 아키텍처 | **기준** (항상 참조) | v2.4 | 확정 |
-| `PRD-05.md` | 백엔드 서버 상세 설계 | **구현 대상** (단일 기준) | v1.4 | 확정 |
+| `PRD-05.md` | 백엔드 서버 상세 설계 | **구현 대상** (단일 기준) | v1.5 | 확정 |
 | `PRD-07.md` | 데이터베이스(PostgreSQL) | 계약: 스키마·제약조건 (엔티티 매핑 기준) | v1.3 | 확정 |
 | `PRD-06.md` | 음원 서버(RustFS & FFmpeg) | 계약: 버킷 키 구조·Content-Type·접근 정책·FFmpeg 명령 | v1.2 | 확정 |
 | `PRD-04.md` | 리버스 프록시(Nginx) | 계약: 라우팅 경로·`X-Accel-Redirect`·전달 헤더 | v1.2 | 확정 |
@@ -97,7 +97,7 @@
 
 * **미디어 바이트 비경유:** 청크·원본·앨범아트 바이트는 백엔드(톰캣) 스레드를 거치지 않습니다.
 * **업로드 즉시 응답:** 동기 구간(검증·태그 추출·원본 저장)만 처리하고 `202`를 반환합니다. 변환은 비동기로 수행합니다.
-* **변환 동시성 제한:** 전용 `transcodeExecutor`(`core 1`, `max 2`, `queue 50`)로 노드당 동시 변환 수를 제한하여 일반 API가 지연되지 않도록 합니다.
+* **변환 동시성 제한:** 전용 `transcodeExecutor`(`app.async.transcode.*`, 기본 `core 1`, `max 2`, `queue 50`)로 노드당 동시 변환 수를 제한하여 일반 API가 지연되지 않도록 합니다.
 * **FFmpeg 타임아웃:** 최대 3분(`app.audio.ffmpeg-timeout-minutes`). 초과 시 강제 종료하고 `FAILED`로 처리합니다.
 * **DB 커넥션 보호:** OSIV 비활성화(`open-in-view: false`).
 * **목록 조회:** `size` 최대 100. `created_at DESC`, `(status, created_at DESC)` 인덱스를 활용합니다.
@@ -120,7 +120,8 @@
 * **미완료 트랙 정리:** 큐가 포화되면 `FAILED`로 기록합니다. 기동 시 오래된 `PENDING`/`PROCESSING` 트랙을 `FAILED`로 정리하며, 자동 재변환은 MVP 범위에서 제외합니다.
 * **업로드 보상 처리:** DB 저장이 실패하면 이미 업로드한 RustFS 객체를 삭제합니다.
 * **프로파일:** `local`은 H2(`MODE=PostgreSQL`) + `ddl-auto: update`, `prod`는 PostgreSQL + PRD-07 `init.sql` + `ddl-auto: validate`입니다.
-* **테스트:** Service 계층은 외부 인프라 없이 Mockito로 단위 테스트합니다. RustFS·FFmpeg는 인터페이스(`StorageService`, `FfmpegCommandRunner`)로 추상화합니다.
+* **테스트:** 단위 테스트는 Service(`XxxServiceImpl`)·Entity·Util에만 작성하며, 외부 인프라 없이 Mockito로 검증합니다. 서비스는 인터페이스와 `Impl`로 분리하고 테스트 대상은 `Impl`입니다. RustFS·FFmpeg는 인터페이스(`StorageService`, `FfmpegCommandRunner`)로 추상화합니다.
+* **패키지 구조:** 도메인별(package-by-feature)로 `global`, `track`, `user`, `playback`, `transcode`, `storage`로 나눕니다(PRD-05 §5).
 
 ## 6. 플랫폼 분리 대비 원칙
 
@@ -150,6 +151,7 @@
 | 9 | PRD-05의 빌드 명세가 Spring Boot 3 스타터 명칭을 사용합니다. 로컬 H2와 `validate` 설정이 충돌합니다. | Boot 4 명칭(현재 `build.gradle.kts` 기준), `local`/`prod` 프로파일 분리 | PRD-05 §3.2·§4·§9 |
 | 10 | Nginx의 `$upstream_http_content_disposition` 복사 방식은 동작이 보장되지 않고, `X-Forwarded-Host` 설정이 빠져 있습니다. | 변수 복사 제거(X-Accel-Redirect 원 응답 헤더 유지 활용), `X-Forwarded-Host` 추가, 통합 검증 항목 추가 | PRD-04 §4·§6 |
 | 11 | `/api/auth/me`가 `permitAll`이면 미인증 요청의 응답이 정의되지 않습니다. | `/api/auth/me`만 인증 필수, 미인증 시 `401` JSON 응답 | PRD-05 §7.3 |
+| 12 | Java 코딩 규칙(`.claude/rules/spring-java.md`) 도입으로 레이어별 패키지, 단일 클래스 서비스, 비서비스 클래스 테스트, 코드 내 고정 기준값이 규칙과 충돌합니다. | 도메인별 패키지(`global`/`track`/`user`/`playback`/`transcode`/`storage`), `@Service`는 인터페이스 + `Impl`, 도메인 서비스가 아니면 `@Component`, 테스트는 Service·Entity·Util만, 수치·목록 기준값은 `application.yaml`로 이동 | PRD-05 §1·§3·§4·§5·§6·§7·§8 |
 
 ### 7.1. 통합 테스트에서 확인할 항목 (문서만으로는 확정 불가)
 
@@ -171,4 +173,5 @@
 * 기능을 구현하기 전에는 해당 번호의 PRD 파일을 반드시 읽습니다.
 * 이 저장소는 PRD-05만 구현합니다. 다른 영역의 요구사항은 구현하지 않고 보고합니다.
 * PRD 사이에 충돌이 발견되면 임의로 판단하지 말고 사용자에게 확인한 뒤, 결정 사항을 §7에 기록합니다.
+* Java 코드 작성 규칙(들여쓰기, 서비스 인터페이스/Impl 분리, 테스트 범위, 설정값 관리, 패키지 구조)은 `.claude/rules/spring-java.md`를 따르며, 충돌 시 Java 파일 작업에서는 이 규칙이 우선합니다.
 * 인터페이스 계약(경로, 필드명, 헤더, 키 구조, 환경변수명)을 바꿀 때는 관련된 모든 PRD와 이 파일을 함께 갱신합니다.
