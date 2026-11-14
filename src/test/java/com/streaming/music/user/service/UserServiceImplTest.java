@@ -24,7 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class UserServiceTest {
+class UserServiceImplTest {
 
 	private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
 	private static final Instant OLD = Instant.parse("2025-01-01T00:00:00Z");
@@ -32,11 +32,11 @@ class UserServiceTest {
 	@Mock
 	private UserRepository userRepository;
 
-	private UserService userService;
+	private UserServiceImpl userService;
 
 	@BeforeEach
 	void setUp() {
-		userService = new UserService(userRepository, Clock.fixed(NOW, ZoneOffset.UTC));
+		userService = new UserServiceImpl(userRepository, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 
 	private User createExistingUser() {

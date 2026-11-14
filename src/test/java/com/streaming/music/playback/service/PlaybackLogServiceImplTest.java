@@ -30,7 +30,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
-class PlaybackLogServiceTest {
+class PlaybackLogServiceImplTest {
 
 	private static final Instant FIXED_NOW = Instant.parse("2026-11-11T01:00:00Z");
 
@@ -43,13 +43,13 @@ class PlaybackLogServiceTest {
 	@Mock
 	private PlatformTransactionManager transactionManager;
 
-	private PlaybackLogService playbackLogService;
+	private PlaybackLogServiceImpl playbackLogService;
 	private Track track;
 
 	@BeforeEach
 	void setUp() {
 		Clock clock = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
-		playbackLogService = new PlaybackLogService(
+		playbackLogService = new PlaybackLogServiceImpl(
 				playbackLogRepository, userRepository, clock, transactionManager);
 		track = Track.builder().trackId(UUID.randomUUID()).build();
 	}
@@ -69,6 +69,22 @@ class PlaybackLogServiceTest {
 		assertThat(saved.getTrack()).isSameAs(track);
 		assertThat(saved.getActionType()).isEqualTo(ActionType.STREAM);
 		assertThat(saved.getCreatedAt()).isEqualTo(FIXED_NOW);
+	}
+
+	@Test
+	@DisplayName("DOWNLOAD 요청은 DOWNLOAD ActionType으로 이력이 저장된다")
+	void recordsLogWithDownloadActionType() {
+		User user = mock(User.class);
+		when(userRepository.getReferenceById(1L)).thenReturn(user);
+
+		playbackLogService.recordLog(track, 1L, ActionType.DOWNLOAD);
+
+		ArgumentCaptor<PlaybackLog> captor = ArgumentCaptor.forClass(PlaybackLog.class);
+		verify(playbackLogRepository).save(captor.capture());
+		PlaybackLog saved = captor.getValue();
+		assertThat(saved.getUser()).isSameAs(user);
+		assertThat(saved.getTrack()).isSameAs(track);
+		assertThat(saved.getActionType()).isEqualTo(ActionType.DOWNLOAD);
 	}
 
 	@Test
