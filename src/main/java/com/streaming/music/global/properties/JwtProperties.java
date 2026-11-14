@@ -12,11 +12,16 @@ public record JwtProperties(
 		String secretKey,
 		@DefaultValue("86400000") long accessTokenExpirationMs,
 		String defaultRedirectUri,
-		List<String> allowedRedirectUris
+		List<String> allowedRedirectUris,
+		@DefaultValue("180") int authorizationCookieMaxAgeSeconds,
+		@DefaultValue({"access_denied", "invalid_request", "authorization_request_not_found",
+				"invalid_state_parameter", "invalid_user_info", "server_error", "temporarily_unavailable"})
+		List<String> allowedFailureErrorCodes
 ) {
 
 	public JwtProperties {
 		allowedRedirectUris = PropertyUtils.normalizeList(allowedRedirectUris);
+		allowedFailureErrorCodes = PropertyUtils.normalizeList(allowedFailureErrorCodes);
 	}
 
 	/** 시크릿 키 로그 노출 방지를 위해 마스킹한다. */
@@ -24,6 +29,8 @@ public record JwtProperties(
 	public String toString() {
 		return "JwtProperties[secretKey=****, accessTokenExpirationMs=" + accessTokenExpirationMs
 				+ ", defaultRedirectUri=" + defaultRedirectUri
-				+ ", allowedRedirectUris=" + allowedRedirectUris + "]";
+				+ ", allowedRedirectUris=" + allowedRedirectUris
+				+ ", authorizationCookieMaxAgeSeconds=" + authorizationCookieMaxAgeSeconds
+				+ ", allowedFailureErrorCodes=" + allowedFailureErrorCodes + "]";
 	}
 }

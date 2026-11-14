@@ -1,5 +1,6 @@
 package com.streaming.music.global.security;
 
+import com.streaming.music.global.properties.JwtProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -45,11 +46,16 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
 	public static final String REDIRECT_URI_COOKIE_NAME = "oauth2_redirect_uri";
 	public static final String REDIRECT_URI_PARAM_NAME = "redirect_uri";
 
-	static final int COOKIE_MAX_AGE_SECONDS = 180;
 	static final int MAX_COOKIE_VALUE_LENGTH = 3072;
 	static final int MAX_REDIRECT_URI_LENGTH = 512;
 
 	private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+
+	private final int cookieMaxAgeSeconds;
+
+	public HttpCookieOAuth2AuthorizationRequestRepository(JwtProperties jwtProperties) {
+		this.cookieMaxAgeSeconds = jwtProperties.authorizationCookieMaxAgeSeconds();
+	}
 
 	/** 쿠키에 저장할 인가 요청 필드. grantType/responseType은 고정값이라 저장하지 않는다. */
 	record StoredAuthorizationRequest(
@@ -85,7 +91,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
 			removeAuthorizationRequestCookies(request, response);
 			return;
 		}
-		addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, serialized, COOKIE_MAX_AGE_SECONDS);
+		addCookie(response, request, AUTHORIZATION_REQUEST_COOKIE_NAME, serialized, cookieMaxAgeSeconds);
 
 		String redirectUri = request.getParameter(REDIRECT_URI_PARAM_NAME);
 		if (redirectUri == null || redirectUri.isBlank() || redirectUri.length() > MAX_REDIRECT_URI_LENGTH) {
@@ -93,7 +99,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
 			addCookie(response, request, REDIRECT_URI_COOKIE_NAME, "", 0);
 			return;
 		}
-		addCookie(response, request, REDIRECT_URI_COOKIE_NAME, encode(redirectUri), COOKIE_MAX_AGE_SECONDS);
+		addCookie(response, request, REDIRECT_URI_COOKIE_NAME, encode(redirectUri), cookieMaxAgeSeconds);
 	}
 
 	/** 요청을 반환하고 인가 요청 쿠키만 삭제한다. redirect_uri 쿠키는 성공/실패 핸들러가 읽은 뒤 삭제한다. */

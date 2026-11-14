@@ -2,6 +2,7 @@ package com.streaming.music.global.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.streaming.music.global.properties.JwtProperties;
 import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -24,10 +25,17 @@ class OAuth2AuthenticationFailureHandlerTest {
 
 	private OAuth2AuthenticationFailureHandler handler;
 
+	private static JwtProperties jwtProperties() {
+		return new JwtProperties(null, 3_600_000L, WEB_URI, List.of(WEB_URI, APP_URI), 180,
+				List.of("access_denied", "invalid_request", "authorization_request_not_found",
+						"invalid_state_parameter", "invalid_user_info", "server_error", "temporarily_unavailable"));
+	}
+
 	@BeforeEach
 	void setUp() {
 		handler = new OAuth2AuthenticationFailureHandler(new RedirectUriPolicy(WEB_URI, List.of(WEB_URI, APP_URI)),
-				new HttpCookieOAuth2AuthorizationRequestRepository());
+				new HttpCookieOAuth2AuthorizationRequestRepository(jwtProperties()),
+				jwtProperties());
 	}
 
 	private MockHttpServletRequest requestWithRedirect(String redirectUri) {

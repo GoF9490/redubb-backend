@@ -42,8 +42,8 @@ public class CorsConfig {
 
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(origins);
-		configuration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		configuration.setAllowedMethods(corsProperties.allowedMethods());
+		configuration.setAllowedHeaders(corsProperties.allowedHeaders());
 		configuration.setAllowCredentials(false);
 		configuration.setMaxAge(PREFLIGHT_MAX_AGE_SECONDS);
 		source.registerCorsConfiguration("/**", configuration);

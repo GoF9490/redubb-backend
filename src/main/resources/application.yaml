@@ -44,6 +44,15 @@ app:
     access-token-expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 기본 24시간
     default-redirect-uri: ${OAUTH2_DEFAULT_REDIRECT_URI:http://localhost/auth/callback} # redirect_uri 미지정 시 기본값
     allowed-redirect-uris: ${OAUTH2_ALLOWED_REDIRECT_URIS:http://localhost/auth/callback,musicapp://oauth2/callback} # 화이트리스트 (쉼표 구분)
+    authorization-cookie-max-age-seconds: 180 # OAuth2 인가 요청·redirect_uri 쿠키 Max-Age (§6.1-3)
+    allowed-failure-error-codes: # 로그인 실패 시 ?error= 로 그대로 전달할 코드 (그 외는 login_failed로 치환)
+      - access_denied
+      - invalid_request
+      - authorization_request_not_found
+      - invalid_state_parameter
+      - invalid_user_info
+      - server_error
+      - temporarily_unavailable
 
   storage: # StorageProperties
     endpoint: ${STORAGE_ENDPOINT:http://rustfs:9000} # presigned URL 서명 Host 기준. Nginx의 STORAGE_HOST_HEADER와 반드시 일치
@@ -76,6 +85,8 @@ app:
 
   cors: # CorsProperties
     allowed-origins: ${CORS_ALLOWED_ORIGINS:} # 기본값(빈 값) = 단일 오리진이므로 CORS 비활성. 웹 분리 배포 시 오리진 지정
+    allowed-methods: [GET, POST, OPTIONS]
+    allowed-headers: [Authorization, Content-Type]
 
 ---
 # ============================================================

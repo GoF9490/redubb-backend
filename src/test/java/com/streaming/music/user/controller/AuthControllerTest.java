@@ -66,7 +66,9 @@ class AuthControllerTest {
 		JwtProperties jwtProperties() {
 			// RedirectUriPolicy 기동 검증을 통과하는 유효한 redirect 설정이 필요하다
 			return new JwtProperties(KEY, 3_600_000L, "http://localhost/auth/callback",
-					List.of("http://localhost/auth/callback", "musicapp://oauth2/callback"));
+					List.of("http://localhost/auth/callback", "musicapp://oauth2/callback"), 180,
+					List.of("access_denied", "invalid_request", "authorization_request_not_found",
+					"invalid_state_parameter", "invalid_user_info", "server_error", "temporarily_unavailable"));
 		}
 
 		@Bean
@@ -98,12 +100,12 @@ class AuthControllerTest {
 
 	private String forgedToken() {
 		return new JwtTokenProvider(
-				new JwtProperties("other-secret-key-other-secret-key-0123456789", 3_600_000L, null, null),
+				new JwtProperties("other-secret-key-other-secret-key-0123456789", 3_600_000L, null, null, 180, List.of()),
 				Clock.fixed(NOW, ZoneOffset.UTC)).createToken(1L, "ROLE_USER");
 	}
 
 	private String expiredToken() {
-		return new JwtTokenProvider(new JwtProperties(KEY, 1_000L, null, null),
+		return new JwtTokenProvider(new JwtProperties(KEY, 1_000L, null, null, 180, List.of()),
 				Clock.fixed(NOW.minusSeconds(3600), ZoneOffset.UTC)).createToken(1L, "ROLE_USER");
 	}
 

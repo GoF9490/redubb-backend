@@ -1,5 +1,6 @@
 package com.streaming.music.global.security;
 
+import com.streaming.music.global.properties.JwtProperties;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,7 +35,9 @@ class HttpCookieOAuth2AuthorizationRequestRepositoryTest {
 
 	@BeforeEach
 	void setUp() {
-		repository = new HttpCookieOAuth2AuthorizationRequestRepository();
+		repository = new HttpCookieOAuth2AuthorizationRequestRepository(
+				new JwtProperties(null, 3_600_000L, "http://localhost/auth/callback",
+						List.of("http://localhost/auth/callback"), 180, List.of()));
 		request = new MockHttpServletRequest();
 		response = new MockHttpServletResponse();
 	}

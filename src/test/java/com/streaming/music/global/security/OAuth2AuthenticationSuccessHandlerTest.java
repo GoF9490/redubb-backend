@@ -32,17 +32,21 @@ class OAuth2AuthenticationSuccessHandlerTest {
 	private static final String APP_URI = "musicapp://oauth2/callback";
 	private static final String KEY = "test-secret-key-test-secret-key-0123456789";
 
+	private static JwtProperties jwtProperties() {
+		return new JwtProperties(KEY, 3_600_000L, WEB_URI, List.of(WEB_URI, APP_URI), 180, List.of());
+	}
+
 	private JwtTokenProvider jwtTokenProvider;
 	private OAuth2AuthenticationSuccessHandler handler;
 	private Authentication authentication;
 
 	@BeforeEach
 	void setUp() {
-		jwtTokenProvider = new JwtTokenProvider(new JwtProperties(KEY, 3_600_000L, WEB_URI, List.of(WEB_URI, APP_URI)),
+		jwtTokenProvider = new JwtTokenProvider(jwtProperties(),
 				Clock.fixed(Instant.now(), ZoneOffset.UTC));
 		RedirectUriPolicy policy = new RedirectUriPolicy(WEB_URI, List.of(WEB_URI, APP_URI));
 		handler = new OAuth2AuthenticationSuccessHandler(jwtTokenProvider, policy,
-				new HttpCookieOAuth2AuthorizationRequestRepository());
+				new HttpCookieOAuth2AuthorizationRequestRepository(jwtProperties()));
 
 		OidcIdToken idToken = OidcIdToken.withTokenValue("t").subject("sub-1")
 				.issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
@@ -195,7 +199,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 		when(failing.createToken(7L, "ROLE_USER")).thenThrow(new IllegalStateException("boom"));
 		OAuth2AuthenticationSuccessHandler failingHandler = new OAuth2AuthenticationSuccessHandler(failing,
 				new RedirectUriPolicy(WEB_URI, List.of(WEB_URI, APP_URI)),
-				new HttpCookieOAuth2AuthorizationRequestRepository());
+				new HttpCookieOAuth2AuthorizationRequestRepository(jwtProperties()));
 		MockHttpServletRequest request = requestWithRedirect(WEB_URI);
 		MockHttpServletResponse response = new MockHttpServletResponse();
 

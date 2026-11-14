@@ -58,7 +58,7 @@ class JwtTokenProviderTest {
 	}
 
 	private JwtProperties properties(String secret) {
-		return new JwtProperties(secret, EXPIRATION_MS, "http://localhost/auth/callback", List.of());
+		return new JwtProperties(secret, EXPIRATION_MS, "http://localhost/auth/callback", List.of(), 180, List.of());
 	}
 
 	private JwtTokenProvider createProvider(String secret, Clock clock) {

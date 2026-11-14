@@ -1,5 +1,6 @@
 package com.streaming.music.global.security;
 
+import com.streaming.music.global.properties.JwtProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Set;
@@ -17,17 +18,16 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
 
 	static final String ERROR_LOGIN_FAILED = "login_failed";
 
-	static final Set<String> ALLOWED_ERROR_CODES = Set.of(
-			"access_denied", "invalid_request", "authorization_request_not_found",
-			"invalid_state_parameter", "invalid_user_info", "server_error", "temporarily_unavailable");
-
 	private final RedirectUriPolicy redirectUriPolicy;
 	private final HttpCookieOAuth2AuthorizationRequestRepository cookieRepository;
+	private final Set<String> allowedErrorCodes;
 
 	public OAuth2AuthenticationFailureHandler(RedirectUriPolicy redirectUriPolicy,
-			HttpCookieOAuth2AuthorizationRequestRepository cookieRepository) {
+			HttpCookieOAuth2AuthorizationRequestRepository cookieRepository,
+			JwtProperties jwtProperties) {
 		this.redirectUriPolicy = redirectUriPolicy;
 		this.cookieRepository = cookieRepository;
+		this.allowedErrorCodes = Set.copyOf(jwtProperties.allowedFailureErrorCodes());
 	}
 
 	@Override
@@ -47,7 +47,7 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
 		if (exception instanceof OAuth2AuthenticationException oauth2Exception
 				&& oauth2Exception.getError() != null) {
 			String code = oauth2Exception.getError().getErrorCode();
-			if (code != null && ALLOWED_ERROR_CODES.contains(code)) {
+			if (code != null && allowedErrorCodes.contains(code)) {
 				return code;
 			}
 		}

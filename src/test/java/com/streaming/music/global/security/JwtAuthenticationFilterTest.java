@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +29,7 @@ class JwtAuthenticationFilterTest {
 
 	@BeforeEach
 	void setUp() {
-		provider = new JwtTokenProvider(new JwtProperties(KEY, 3_600_000L, null, null),
+		provider = new JwtTokenProvider(new JwtProperties(KEY, 3_600_000L, null, null, 180, List.of()),
 				Clock.fixed(NOW, ZoneOffset.UTC));
 		filter = new JwtAuthenticationFilter(provider);
 		SecurityContextHolder.clearContext();
@@ -94,9 +95,9 @@ class JwtAuthenticationFilterTest {
 	@DisplayName("위조·만료 토큰은 익명으로 통과한다")
 	void passAnonymousForForgedOrExpiredToken() throws Exception {
 		JwtTokenProvider otherKey = new JwtTokenProvider(
-				new JwtProperties("other-secret-key-other-secret-key-0123456789", 3_600_000L, null, null),
+				new JwtProperties("other-secret-key-other-secret-key-0123456789", 3_600_000L, null, null, 180, List.of()),
 				Clock.fixed(NOW, ZoneOffset.UTC));
-		JwtTokenProvider past = new JwtTokenProvider(new JwtProperties(KEY, 1_000L, null, null),
+		JwtTokenProvider past = new JwtTokenProvider(new JwtProperties(KEY, 1_000L, null, null, 180, List.of()),
 				Clock.fixed(NOW.minusSeconds(3600), ZoneOffset.UTC));
 
 		assertThat(runFilter("Bearer " + otherKey.createToken(1L, "ROLE_USER"), new MockFilterChain())).isNull();

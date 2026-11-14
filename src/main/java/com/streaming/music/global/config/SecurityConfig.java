@@ -43,7 +43,7 @@ public class SecurityConfig {
 	/** 인가 요청 저장소. oauth2Login과 성공·실패 핸들러가 같은 인스턴스를 공유한다. */
 	@Bean
 	public HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository() {
-		return new HttpCookieOAuth2AuthorizationRequestRepository();
+		return new HttpCookieOAuth2AuthorizationRequestRepository(jwtProperties);
 	}
 
 	@Bean
@@ -71,7 +71,7 @@ public class SecurityConfig {
 				.userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
 				.successHandler(new OAuth2AuthenticationSuccessHandler(
 					jwtTokenProvider, redirectUriPolicy, cookieRepository))
-				.failureHandler(new OAuth2AuthenticationFailureHandler(redirectUriPolicy, cookieRepository))
+				.failureHandler(new OAuth2AuthenticationFailureHandler(redirectUriPolicy, cookieRepository, jwtProperties))
 			)
 			// 필터는 빈이 아닌 직접 생성하여 서블릿 컨테이너 자동 등록(이중 실행)을 피한다.
 			.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);

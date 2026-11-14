@@ -22,7 +22,8 @@ class CorsConfigTest {
 	private final CorsConfig corsConfig = new CorsConfig();
 
 	private CorsConfigurationSource createSource(List<String> origins) {
-		return corsConfig.corsConfigurationSource(new CorsProperties(origins));
+		return corsConfig.corsConfigurationSource(new CorsProperties(origins,
+				List.of("GET", "POST", "OPTIONS"), List.of("Authorization", "Content-Type")));
 	}
 
 	private CorsConfiguration resolve(CorsConfigurationSource source) {
