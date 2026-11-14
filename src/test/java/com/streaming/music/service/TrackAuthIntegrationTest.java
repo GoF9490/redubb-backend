@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import com.streaming.music.entity.PlaybackLog;
+import com.streaming.music.playback.entity.PlaybackLog;
 import com.streaming.music.entity.Track;
-import com.streaming.music.entity.User;
+import com.streaming.music.user.entity.User;
 import com.streaming.music.global.security.JwtTokenProvider;
 import com.streaming.music.support.SampleFixtures;
 import java.util.List;

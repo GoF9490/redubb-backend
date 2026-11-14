@@ -3,11 +3,12 @@ package com.streaming.music.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import com.streaming.music.playback.service.PlaybackLogService;
 import com.streaming.music.dto.response.StreamPlayResponse;
-import com.streaming.music.entity.ActionType;
-import com.streaming.music.entity.PlaybackLog;
+import com.streaming.music.playback.entity.ActionType;
+import com.streaming.music.playback.entity.PlaybackLog;
 import com.streaming.music.entity.Track;
-import com.streaming.music.entity.User;
+import com.streaming.music.user.entity.User;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;

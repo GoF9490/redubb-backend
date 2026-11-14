@@ -1,4 +1,4 @@
-package com.streaming.music.service;
+package com.streaming.music.user.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -7,10 +7,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.streaming.music.entity.User;
+import com.streaming.music.user.entity.User;
 import com.streaming.music.global.exception.ErrorCode;
 import com.streaming.music.global.exception.UnauthorizedException;
-import com.streaming.music.repository.UserRepository;
+import com.streaming.music.user.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

@@ -3,6 +3,9 @@ package com.streaming.music.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.streaming.music.user.entity.User;
+import com.streaming.music.playback.entity.PlaybackLog;
+import com.streaming.music.playback.entity.ActionType;
 import jakarta.persistence.PersistenceException;
 import java.time.Instant;
 import java.util.UUID;

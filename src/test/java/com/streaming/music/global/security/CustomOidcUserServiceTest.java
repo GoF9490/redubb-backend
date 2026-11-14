@@ -8,9 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.streaming.music.entity.User;
-import com.streaming.music.service.OAuth2UserInfo;
-import com.streaming.music.service.UserService;
+import com.streaming.music.user.entity.User;
+import com.streaming.music.user.service.OAuth2UserInfo;
+import com.streaming.music.user.service.UserService;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;

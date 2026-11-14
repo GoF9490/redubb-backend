@@ -1,11 +1,11 @@
-package com.streaming.music.service;
+package com.streaming.music.playback.service;
 
-import com.streaming.music.entity.ActionType;
-import com.streaming.music.entity.PlaybackLog;
+import com.streaming.music.playback.entity.ActionType;
+import com.streaming.music.playback.entity.PlaybackLog;
 import com.streaming.music.entity.Track;
-import com.streaming.music.entity.User;
-import com.streaming.music.repository.PlaybackLogRepository;
-import com.streaming.music.repository.UserRepository;
+import com.streaming.music.user.entity.User;
+import com.streaming.music.playback.repository.PlaybackLogRepository;
+import com.streaming.music.user.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;

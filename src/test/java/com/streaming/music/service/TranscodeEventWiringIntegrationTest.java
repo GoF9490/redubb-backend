@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import com.streaming.music.dto.request.TrackUploadRequest;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;
-import com.streaming.music.entity.User;
+import com.streaming.music.user.entity.User;
 import com.streaming.music.support.SampleFixtures;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;

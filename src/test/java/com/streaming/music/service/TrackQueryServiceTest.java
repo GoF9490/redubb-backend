@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.streaming.music.playback.service.PlaybackLogService;
 import com.streaming.music.global.properties.AudioProperties;
 import com.streaming.music.global.properties.StorageProperties;
 import com.streaming.music.entity.Track;
@@ -17,7 +18,7 @@ import com.streaming.music.global.exception.InvalidRequestException;
 import com.streaming.music.global.exception.TrackNotFoundException;
 import com.streaming.music.global.util.LikePatternEscaper;
 import com.streaming.music.repository.TrackRepository;
-import com.streaming.music.repository.UserRepository;
+import com.streaming.music.user.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

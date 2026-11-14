@@ -1,4 +1,4 @@
-package com.streaming.music.service;
+package com.streaming.music.user.service;
 
 /**
  * OAuth2 로그인에서 추출한 최소 사용자 정보 (sub, email, picture).

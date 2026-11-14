@@ -1,8 +1,8 @@
-package com.streaming.music.service;
+package com.streaming.music.user.service;
 
-import com.streaming.music.entity.User;
+import com.streaming.music.user.entity.User;
 import com.streaming.music.global.exception.UnauthorizedException;
-import com.streaming.music.repository.UserRepository;
+import com.streaming.music.user.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;

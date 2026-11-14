@@ -1,6 +1,6 @@
-package com.streaming.music.repository;
+package com.streaming.music.user.repository;
 
-import com.streaming.music.entity.User;
+import com.streaming.music.user.entity.User;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 

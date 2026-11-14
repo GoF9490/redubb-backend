@@ -1,8 +1,8 @@
-package com.streaming.music.repository;
+package com.streaming.music.user.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.streaming.music.entity.User;
+import com.streaming.music.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

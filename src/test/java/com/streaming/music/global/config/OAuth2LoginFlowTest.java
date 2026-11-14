@@ -3,12 +3,12 @@ package com.streaming.music.global.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-import com.streaming.music.controller.AuthController;
+import com.streaming.music.user.controller.AuthController;
 import com.streaming.music.global.exception.GlobalExceptionHandler;
 import com.streaming.music.global.security.CustomOidcUserService;
 import com.streaming.music.global.security.JwtTokenProvider;
 import com.streaming.music.global.security.RestAuthenticationEntryPoint;
-import com.streaming.music.service.UserService;
+import com.streaming.music.user.service.UserService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,5 +1,6 @@
 package com.streaming.music.entity;
 
+import com.streaming.music.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
