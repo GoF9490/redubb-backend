@@ -40,3 +40,6 @@ out/
 .env
 .env.*
 !.env.example
+
+# 서브에이전트 통신용 임시 파일
+.claude/agent-comm/
