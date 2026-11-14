@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 8/16 Tasks 완료
+**📊 진행 상황**: 9/16 Tasks 완료
 
 ## 진행 보드
 
@@ -19,7 +19,7 @@
 - Phase 2 — Service 인터페이스/Impl 분리
   - [x] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
   - [x] R2-2 `UserService`·`PlaybackLogService` 분리
-  - [ ] R2-3 `TrackService` 분리 및 테스트 통합
+  - [x] R2-3 `TrackService` 분리 및 테스트 통합
   - [ ] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
 - Phase 3 — 설정값 외부화
   - [ ] R3-1 `AsyncProperties`·`TrackProperties` 도입
@@ -156,14 +156,14 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
   - [구현] `@Transactional`은 Impl 메서드에 둔다(인터페이스에 두지 않음)
   - [검토] `PlaybackLogService`가 트랜잭션 전파(`REQUIRES_NEW` 등)로 호출자 트랜잭션과 분리돼 있다면 그대로 유지되는지 확인
 
-### [ ] R2-3 `TrackService` 분리 및 테스트 통합
+### [x] R2-3 `TrackService` 분리 및 테스트 통합
 - **목표:** `TrackService` 인터페이스 + `TrackServiceImpl`로 나누고, `TrackServiceTest`·`TrackQueryServiceTest`·`TrackServicePlayTest`·`TrackServiceDownloadTest`를 `TrackServiceImplTest`로 합친다.
 - **선행:** R2-2
 - **완료 조건:** (테스트: **단위 테스트 필수**)
-  - [ ] `TrackController`가 `TrackService` 인터페이스를 주입받음
-  - [ ] `TrackServiceImplTest`가 PRD-05 §8의 1~7번 시나리오를 모두 포함(누락 시 추가)
-  - [ ] 합친 뒤 테스트 메서드 수가 합치기 전 합계 이상
-  - [ ] `./gradlew build` 통과
+  - [x] `TrackController`가 `TrackService` 인터페이스를 주입받음
+  - [x] `TrackServiceImplTest`가 PRD-05 §8의 1~7번 시나리오를 모두 포함(누락 시 추가)
+  - [x] 합친 뒤 테스트 메서드 수가 합치기 전 합계 이상
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [계획] 4개 테스트를 한 클래스로 합칠 때 `@Nested`(업로드/조회/재생/다운로드)로 묶어 가독성을 유지
   - [구현] `TrackUploadRollbackIntegrationTest` 등 통합 테스트가 구체 클래스를 `@MockitoBean`/`@Autowired`하고 있으면 인터페이스 타입으로 바꾼다
