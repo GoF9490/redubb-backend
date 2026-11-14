@@ -4,7 +4,7 @@
 
 ## 프로젝트 개요
 
-음원 스트리밍 및 원본 아카이빙 서비스(MVP)의 **백엔드 서버**이다. 업로드된 음원의 원본과 HLS(`.m3u8`/`.ts`) 청크를 분리 저장하고 스트리밍/다운로드 API를 제공한다. 기능 구현(PRD-05 기준)은 완료되어 있고, 현재는 **Java 코딩 규칙(`.claude/rules/spring-java.md`)에 맞춘 코드 리팩터링**이 다음 작업이다.
+음원 스트리밍 및 원본 아카이빙 서비스(MVP)의 **백엔드 서버**이다. 업로드된 음원의 원본과 HLS(`.m3u8`/`.ts`) 청크를 분리 저장하고 스트리밍/다운로드 API를 제공한다. 기능 구현(PRD-05 기준)은 완료되어 있고, **Java 코딩 규칙(`.claude/rules/spring-java.md`)에 맞춘 코드 리팩터링도 완료**되었다(진행 이력은 `.claude/docs/ROADMAP.md`).
 
 - Spring Boot 4.1.2, Java 21 toolchain, Gradle Kotlin DSL (`build.gradle.kts`), Lombok
 - 패키지 루트: `com.streaming.music`
@@ -16,10 +16,12 @@ Windows에서는 `gradlew.bat`(PowerShell) 또는 `./gradlew`(Git Bash)를 사�
 ```bash
 ./gradlew build                  # 컴파일 + 테스트
 ./gradlew bootRun                # 앱 실행 (기본 8080, local 프로파일, H2 콘솔: /h2-console)
-./gradlew test                   # 전체 테스트
-./gradlew test --tests "com.streaming.music.service.TrackServiceTest"           # 단일 테스트 클래스
-./gradlew test --tests "com.streaming.music.service.TrackServiceTest.메서드명"   # 단일 테스트 메서드
+./gradlew test                   # 전체 테스트 (Service(Impl)·Entity·Util 단위 테스트 129건)
+./gradlew test --tests "com.streaming.music.track.service.TrackServiceImplTest*"           # 단일 테스트 클래스 (@Nested 포함)
+./gradlew test --tests "com.streaming.music.track.service.TrackServiceImplTest*.메서드명"   # 단일 테스트 메서드
 ```
+
+테스트는 Spring 컨텍스트를 띄우지 않는 단위 테스트만 둔다. 컨텍스트 기동 확인은 `bootRun`으로 수동 수행한다(외부 의존 RustFS가 없으면 `StorageBucketInitializer`가 fail-fast로 종료하며, `SPRING_PROFILES_ACTIVE=local,test`는 `@Profile("!test")` 러너를 제외해 기동만 확인할 때 쓴다).
 
 ## 규칙 및 문서
 
@@ -40,15 +42,16 @@ Windows에서는 `gradlew.bat`(PowerShell) 또는 `./gradlew`(Git Bash)를 사�
 - 범위 밖 요구사항을 발견하면 구현하지 말고 보고한다.
 - PRD-05와 다른 영역 문서가 충돌하면 임의로 판단하지 말고 사용자에게 묻는다.
 
-## 현재 상태: 코드와 PRD-05(v1.5) 간 차이
+## 현재 상태: 리팩터링 완료
 
-PRD-05 v1.5는 규칙을 반영한 목표 구조를 정의하지만 **소스는 아직 이전 구조**이다. 리팩터링은 아래 차이를 PRD-05 §4·§5·§8 기준으로 맞추는 작업이다.
+PRD-05 v1.5 §4·§5·§8의 목표 구조로 리팩터링이 끝났다.
 
-- **패키지**: 현재 레이어별(`config`, `controller`, `service` …) ➔ 도메인별(`global`, `track`, `user`, `playback`, `transcode`, `storage`).
-- **서비스**: `TrackService` 등이 단일 클래스 ➔ 인터페이스 + `XxxServiceImpl`. 도메인 서비스가 아닌 클래스(`CustomOidcUserService`, `ApplicationEventTranscodeTaskDispatcher`, `MinioStorageService` 등)는 `@Component`.
-- **테스트**: Service(Impl)·Entity·Util만 허용. 그 외 클래스의 기존 테스트는 PRD-05 §8 기준으로 정리하고, 서비스 테스트는 `XxxServiceImplTest`로 변경.
-- **설정값**: 코드에 고정된 수치·목록(스레드 풀, 쿠키 Max-Age, 페이지 크기, 허용 MIME 등)을 `application.yaml`(`app.async`, `app.track`, `app.jwt`, `app.audio`, `app.cors`)로 이동.
-- **들여쓰기**: 기존 Java 소스는 공백 4칸 ➔ 탭.
+- **패키지**: 도메인별(`global`, `track`, `user`, `playback`, `transcode`, `storage`) + `MusicApplication`뿐이며, 각 도메인 아래 `controller/service/repository/entity/dto` 레이어를 둔다. 공통 코드는 `global/{config,properties,security,exception,util}`.
+- **서비스**: 도메인 서비스(`UserService`, `PlaybackLogService`, `TrackService`, `HlsTranscodeService`)는 인터페이스 + `XxxServiceImpl`이며 `@Service`는 Impl에만 있다. 도메인 서비스가 아닌 클래스(`CustomOidcUserService`, `ApplicationEventTranscodeTaskDispatcher`, `MinioStorageService` 등)는 `@Component`.
+- **테스트**: Service(Impl)·Entity·Util 단위 테스트만 남겼다(129건, Spring 컨텍스트 없음). Controller·Repository·Config·DTO·`@Component`·통합 테스트는 삭제했다.
+- **설정값**: 스레드 풀, 쿠키 Max-Age, 페이지 크기, 허용 MIME 등 기준값은 `application.yaml`(`app.async`, `app.track`, `app.jwt`, `app.audio`, `app.cors`)과 `@ConfigurationProperties`로 이동했다. PRD-05 §4.2에 항목이 없는 값(검색어 길이, 내부 경로 접두어, CORS preflight 캐시 시간 등)은 코드 상수로 남아 있다.
+- **들여쓰기**: Java 소스는 모두 탭.
+- **알려진 차이**: PRD-05 §8의 `TrackTest` "금지 전이 검증"은 `Track`에 상태 가드가 없어 구현되지 않았다.
 
 ## 아키텍처 핵심 (상세는 PRD-01·PRD-05)
 
