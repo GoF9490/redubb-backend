@@ -6,7 +6,7 @@
 **📅 최종 업데이트**: 2026-11-14
 
 ## 현재 작업
-- Phase 4 완료(15/16). R5-1(규칙 준수 감사 및 문서 동기화) PLAN 단계 진행. 사용자 지시 범위: ROADMAP 전체 자율 진행.
+- **ROADMAP 전체 완료(16/16).** 남은 것은 아래 "사용자 결정 필요" 항목뿐.
 
 ## 완료한 작업
 - R0-1: `@Primary`(ab80674)는 이미 커밋돼 있어 추가 커밋 없음. 기준선 측정 — 테스트 클래스 57, 테스트 450, 실패·스킵 0. (c679e3f)
@@ -26,8 +26,10 @@
 - R3-3: `AudioProperties`에 `hlsAudioSampleRate`(44100)·`hlsAudioChannels`(2)·`errorMessageMaxLength`(500)·`recoveryStaleThresholdMultiplier`(2)·`allowedAudioMimeTypes`(7)·`allowedArtworkMimeTypes`(2) 추가(값은 기존 코드와 PRD §4.2 동일). 오류 메시지 절단 책임을 `HlsTranscodeServiceImpl.recordFailure`로 이전, `Track.ERROR_MESSAGE_MAX_LENGTH`는 public DDL 상한(500) 유지, 설정값 > 500이면 서비스 생성자에서 기동 실패. `AudioMetadataValidator`는 목록이 비었거나 매핑 없는 MIME이면 기동 실패(MIME→확장자 매핑은 코드 유지). 신규 테스트 `HlsTranscodeServiceImplTest` +3, `TrackTest` +1(기준선 459). 기존 테스트는 생성자 인자만 수정. 메인 재검증 459·실패 0.
 - R4-1: 허용 범위 단위 테스트 +20(`UserTest` 7·`PlaybackLogTest` 4 신규, `TrackTest` +6, `LikePatternEscaperTest` +1, `LogTailBufferTest` +2). `src/main`·기존 기대값 불변, Spring 컨텍스트 없음. PRD §8 체크리스트 대조: 서비스 4종은 기존 테스트로 충족, `TrackStatus`·`ActionType`은 로직 없어 대상 아님. 메인 재검증 479·실패 0.
 - R4-2: 비허용 테스트·지원 클래스·테스트 리소스 삭제(java 50개 350건 + 리소스 9개, 삭제 목록은 커밋 메시지). 삭제 직전 479건 그린 확인, 삭제 후 129건·14 suite 통과, Spring 컨텍스트 테스트 0개(메인 재검증). 남은 테스트: `*ServiceImplTest` 4, Entity 3, Util 4. `src/main`·`build.gradle.kts` 불변.
+- R5-1: 규칙 점검 위반 0건(공백 들여쓰기·`@Service`↔`*ServiceImpl`·직접 주입·루트 패키지·PRD §5 트리). `CLAUDE.md` 갱신(개요·테스트 명령·현재 상태). `bootRun` 확인: 기본 `local`은 RustFS 미연결로 `StorageBucketInitializer` fail-fast(설계), `local,test`는 기동 완료·`/api/tracks` 200·`/api/auth/me` 401·`/h2-console` 302, 종료 후 8080 비어 있음. 업로드·재생·다운로드는 실제 스토리지와 수동 확인 필요. 메인 재검증 129·실패 0.
 
 ## 검토 필요 / 보고 사항
+- **PRD-05와 코드가 다른 부분(R5-1 보고, PRD 미수정)**: (1) `TrackTest` 금지 전이 미충족, (2) PRD §8에 없는 `PlaybackLogTest` 추가, (3) §4.2에 없어 코드에 남긴 기준값 8건(`KEYWORD_MAX_LENGTH`, `/internal-storage/`·`/stream/`·`/artwork/` 접두어, `PREFLIGHT_MAX_AGE_SECONDS`, 쿠키 크기 한도 2개, `KILL_WAIT_MILLIS`·`READER_JOIN_MILLIS`), (4) 기동 시 검증(fail-fast) 3종과 `Track.ERROR_MESSAGE_MAX_LENGTH` public화, (5) `@Profile("!test")`·`test` 프로파일 용도, (6) R4-2 삭제로 인한 테스트 범위 축소. PRD 반영 여부는 사용자 결정.
 - **사용자 알림(R4-2 보호 상실)**: 삭제로 아래 자동 회귀 보호가 사라짐. (1) 트랜잭션·비동기: `PlaybackLogServiceImpl` REQUIRES_NEW 분리·readOnly 호출자 flush·rollback-only 비전파, 업로드 보상·커밋 후 이벤트, `@Async`/`@TransactionalEventListener` 연결, 큐 포화→`TRANSCODE_QUEUE_FULL`. (2) 보안: JWT 발급·검증, redirect 화이트리스트, OAuth2 쿠키·핸들러, SecurityConfig·CORS 정책 테스트(98건+). (3) 영속·스키마: `EntityMappingTest`(PRD-07 DDL 매핑)·Repository 쿼리 테스트 → `prod`의 `ddl-auto: validate` 기동에만 의존. (4) 설정 배선·기동 fail-fast: `ConfigurationProperties*Test`·`MusicApplicationTests`. (5) 웹 계약: Controller·DTO 직렬화·`GlobalExceptionHandler`. (6) `@Component` 로직(FFmpeg 명령 빌더·러너, MIME 검증 등). 필요 시 git 이력(커밋 90cb496 이전)에서 복구 가능.
 - **사용자 결정 필요(R4-2 보고)**: 삭제 후 안 쓰이는 테스트 스타터 4개(`data-jpa-test`, `security-oauth2-client-test`, `security-test`, `webmvc-test`)는 정리 후보이나 `spring-boot-starter-test`가 `build.gradle.kts`에 따로 선언돼 있지 않아 JUnit·Mockito·AssertJ가 이들의 전이 의존성임. 정리하려면 `spring-boot-starter-test` 추가가 선행(`build.gradle.kts` 수정이라 이번 범위 밖).
 - **사용자 결정 필요(R4-1 보고)**: PRD-05 §8 `TrackTest`의 "금지 전이" 검증은 `Track.markProcessing/markReady/markFailed`에 상태 가드가 없어 검증 불가(동작 변경 없이는 불가). 해소하려면 (a) `Track`에 전이 가드를 도입하는 별도 태스크(동작 변경, PRD·사용자 확인 필요) 또는 (b) PRD 문구를 현 구현에 맞게 정정. 이번 리팩터링 범위에서는 미충족으로 남김.
