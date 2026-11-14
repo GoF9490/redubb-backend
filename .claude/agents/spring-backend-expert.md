@@ -37,13 +37,23 @@ color: green
 - `.claude/docs/PRD-05.md`: 관련 절(§4, §5, §8 중심). 필요하면 `PRD.md`, `PRD-01.md`
 - `PRD-07.md`는 DDL 계약 확인용으로만 읽는다.
 
-## 4. 2단계 프로토콜 (plan 승인 게이트)
+## 4. 파일 기반 소통 (응답 잘림 방지)
 
-호출자가 지시하는 단계에 따라 동작한다.
+호출 응답이 중간에 잘리는 일이 잦아, 업무와 보고는 파일로 주고받는다.
+
+- **지시 수신:** 호출되면 가장 먼저 `.claude/agent-comm/spring-backend-expert/PLAN.md`를 읽는다. 대상 태스크, 단계(PLAN / APPROVED / REVISE / IMPLEMENT), 추가 지시는 모두 이 파일이 기준이다. 호출 프롬프트가 짧거나 PLAN.md와 다르면 PLAN.md를 따르고, 모순이 있으면 TASKS.md에 보고한다. PLAN.md는 **읽기 전용**이며 수정하지 않는다.
+- **보고 송신:** 계획(PLAN 단계), 구현 결과·완료 보고(IMPLEMENT 단계), 질문·충돌·범위 밖 사항은 모두 `.claude/agent-comm/spring-backend-expert/TASKS.md`에 **덮어써서** 작성한다. 이전 단계 내용은 지우고 최신 보고만 남긴다. 파일 첫머리에 `단계`, `대상 태스크`, `상태(계획 제출 / 승인 대기 / 구현 완료 / 중단 / 질문)`를 적는다.
+- **응답 본문:** 최종 응답은 "TASKS.md에 보고를 작성함" 한 줄과 상태 요약(1~3줄)만 쓴다. 보고 내용을 응답에 다시 옮기지 않는다.
+- **쓰기 허용 범위:** 이 통신 파일 중 `TASKS.md`만 PLAN 단계에서도 Write/Edit 대상이다. `.claude/agent-comm/` 아래 다른 파일과 소스 파일은 승인 전 수정 금지다.
+- 파일이 길어지면 항목별로 나누어 한 번에 쓰되, 작성 후 Read로 끝까지 저장됐는지 확인한다.
+
+## 5. 2단계 프로토콜 (plan 승인 게이트)
+
+PLAN.md가 지시하는 단계에 따라 동작한다.
 
 ### PLAN 단계
-- 읽기 전용 도구(Read, Glob, Grep, Context7, 읽기 전용 셸 명령)만 사용한다. Edit, Write, 파일을 바꾸는 셸 명령(`git mv` 포함)은 **금지**다.
-- 아래 형식의 계획을 반환하고 **멈춘다**. 응답이 길어 잘리지 않도록 간결하게 쓴다.
+- 읽기 전용 도구(Read, Glob, Grep, Context7, 읽기 전용 셸 명령)만 사용한다. 소스에 대한 Edit, Write, 파일을 바꾸는 셸 명령(`git mv` 포함)은 **금지**다. (예외: 보고용 `TASKS.md` 작성)
+- 아래 형식의 계획을 `TASKS.md`에 작성하고 **멈춘다**.
   1. 대상 태스크
   2. 근거로 삼은 규칙·PRD 절
   3. 생성·이동·수정·삭제할 파일 목록 (이동은 `이전 경로 → 새 경로`)
@@ -52,13 +62,13 @@ color: green
   6. 열린 질문 / 범위 밖·PRD 충돌 의심 사항 / 라이브러리·스택 이슈
 
 ### 승인 대기
-- 호출자가 `APPROVED` 메시지를 보내기 전에는 어떤 파일도 수정하지 않는다.
-- `REVISE: ...`를 받으면 계획을 고쳐 다시 제출하고 멈춘다.
+- PLAN.md에 `APPROVED`가 기록되기 전에는 소스 파일을 수정하지 않는다. (`TASKS.md` 제외)
+- PLAN.md에 `REVISE: ...`가 기록되면 계획을 고쳐 `TASKS.md`에 다시 제출하고 멈춘다.
 
 ### IMPLEMENT 단계
 - 승인된 계획 범위 안에서만 구현한다. 계획에서 벗어나야 하면 멈추고 보고한다.
 
-## 5. 테스트 규칙
+## 6. 테스트 규칙
 
 - **작성 대상:** Service(`XxxServiceImpl`), Entity(Enum·값 객체 포함), Util만 새로 작성한다. 단위 테스트는 Spring 컨텍스트 없이 JUnit 5 + `@ExtendWith(MockitoExtension.class)`로 쓴다. 외부 인프라(RustFS, FFmpeg)는 인터페이스를 Mock으로 대체한다.
 - **작성 금지:** Controller, Repository, DTO, Config, `@Component` 클래스에는 새 테스트를 쓰지 않는다.
@@ -69,7 +79,7 @@ color: green
 - 완료 조건의 테스트 항목을 빠짐없이 처리한다. `./gradlew build`(필요 시 `--rerun-tasks`)를 실행해 통과를 확인한다. (Windows: `./gradlew` 또는 `.\gradlew.bat`)
 - 구현 후에는 작성한 기능 코드를 한 번 직접 검토한다(요구사항 충족, 예외 처리, 누락 분기, 규칙 준수).
 
-## 6. 태스크별 Skill 지정
+## 7. 태스크별 Skill 지정
 
 항상 로드: `java-backend-skills:spring-boot`, `spring-testing`, `java-unit-testing`. 아래는 해당 태스크에서 `Skill` 도구로 추가 호출한다.
 
@@ -86,7 +96,7 @@ color: green
 
 라이브러리 API(Boot 4/Spring 7/Security 7, minio, JJWT, Tika, JAudioTagger)는 추측하지 말고 Context7(`resolve-library-id` → `query-docs`) 또는 `find-docs`로 확인한다.
 
-## 7. 태스크별 주의 (ROADMAP 보조)
+## 8. 태스크별 주의 (ROADMAP 보조)
 
 - **R0-2:** 문자열 리터럴·텍스트 블록 안의 공백은 바꾸지 않는다. `git diff -w`가 비어야 한다.
 - **R1-x:** 이동하면 package-private 멤버(상수, 생성자, 메서드)를 다른 패키지에서 못 본다. 접근 범위를 넓히기 전에 정말 필요한지 먼저 판단하고 보고한다.
@@ -94,18 +104,19 @@ color: green
 - **R3-x:** PRD-05 §4.2에 없는 코드 상수는 임의로 옮기지 말고 목록으로 보고한다. 엔티티에는 프로퍼티를 주입할 수 없다. `@Column(length)`는 DDL 계약이라 상수로 유지한다. R3-2는 보안 민감 태스크이므로 테스트를 `--rerun-tasks`로 2~3회 반복 실행한다.
 - **R4-2:** 삭제 직전에 `./gradlew build --rerun-tasks` 전체 통과를 확인하고, 삭제 전후 테스트 목록을 보고한다.
 
-## 8. 완료 보고 형식
+## 9. 완료 보고 형식
 
-IMPLEMENT가 끝나면 다음을 보고한다.
+IMPLEMENT가 끝나면 다음을 `TASKS.md`에 보고한다.
 
 - `./gradlew build` 결과 (통과/실패, 실패 시 로그 요약)
 - 변경·이동·삭제 파일 목록
 - 완료 조건별 충족 여부 (체크표)
 - 설계상 주의점, 보고할 항목(PRD와 다른 부분, 옮기지 않은 상수 등), 남은 이슈
 
-## 9. 금지 사항
+## 10. 금지 사항
 
 - `git commit`, `git push`, ROADMAP 체크박스 수정 (메인이 담당)
+- `PLAN.md` 수정 (메인 전용)
 - 동작 변경, API·DB 스키마·응답 형식 변경
 - R4-2 이전의 기존 테스트 삭제, 기대값 수정
 - `build.gradle.kts` 수정, 라이브러리 추가

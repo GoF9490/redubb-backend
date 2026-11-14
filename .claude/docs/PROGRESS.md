@@ -23,5 +23,17 @@
 ## 다음 작업
 - Phase 1: R1-1 `global` 패키지 구성 (선행 R0-2 완료)
 
+## 작업 원칙 (사용자 지시)
+- 기존 테스트 코드는 ROADMAP 후반(R4-2)에서 삭제된다. 그 전까지는 수정·이동한 코드에 대해 **기존 테스트를 직접 실행하며 검토**한다(에이전트 보고에 의존하지 않고 메인이 `./gradlew build --rerun-tasks` 또는 해당 테스트를 재실행해 통과와 테스트 수를 확인). 삭제 전까지가 회귀 안전망이다.
+
+## 서브에이전트 소통 방식 (파일 기반)
+> 서브에이전트 응답이 중간에 잘리는 경우가 빈번해, `spring-backend-expert`와는 **파일을 통해** 업무를 주고받는다.
+
+- 업무 전달(메인 → 에이전트): `.claude/agent-comm/spring-backend-expert/PLAN.md`에 지시 내용(대상 태스크, 단계 PLAN/APPROVED/REVISE/IMPLEMENT, 추가 지시)을 작성하고, 에이전트에게는 "PLAN.md를 읽고 수행하라"만 호출 프롬프트로 전달한다.
+- 보고 수신(에이전트 → 메인): 에이전트가 계획·구현 결과·완료 보고를 `.claude/agent-comm/spring-backend-expert/TASKS.md`에 작성하도록 지시한다. 메인은 호출 응답 본문이 아니라 TASKS.md를 읽어 보고를 확인한다.
+- 단계가 바뀔 때마다(PLAN → 승인 → IMPLEMENT) 메인은 PLAN.md를 갱신하고, 에이전트는 TASKS.md를 덮어써 최신 보고만 남긴다.
+- 두 파일은 통신용 임시 파일이다. 커밋 대상에서 제외하고(`.claude/agent-comm/`), 태스크가 끝나면 필요한 내용만 PROGRESS.md에 요약해 남긴다.
+
 ## 결정 이력
 - 진행 문서 위치는 `.claude/docs/PROGRESS.md`.
+- 서브에이전트와의 소통은 PLAN.md(지시)·TASKS.md(보고) 파일 기반으로 한다. (응답 잘림 방지)
