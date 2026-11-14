@@ -6,7 +6,7 @@
 **📅 최종 업데이트**: 2026-11-14
 
 ## 현재 작업
-- Phase 1 진행 중(5/16). R1-3 완료, R1-4(`track` 도메인 이동, 레이어 패키지 제거) PLAN 단계 진행. 사용자 지시 범위: Phase 1(R1-1~R1-4) 자율 진행.
+- Phase 1 완료(6/16). 사용자 지시 범위는 Phase 1까지이므로 Phase 2(R2-1)는 시작하지 않음.
 
 ## 완료한 작업
 - R0-1: `@Primary`(ab80674)는 이미 커밋돼 있어 추가 커밋 없음. 기준선 측정 — 테스트 클래스 57, 테스트 450, 실패·스킵 0. (c679e3f)
@@ -14,20 +14,18 @@
   - 정렬용 이어쓰기 28줄은 "직전 비정렬 줄 들여쓰기 + 탭 2개"로 정규화.
   - Javadoc ` *` 앞 공백 1칸은 정렬용이라 유지.
 - R1-1: config·exception·security·Util 4종을 `global/`로 이동(메인 37 + 테스트 24, `git mv`). `@ConfigurationPropertiesScan` 문자열 갱신, `ContentDispositionBuilder`·`InternalRedirectPathConverter`·`LogTailBuffer`만 public 확장(상수는 package-private 유지). 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인, 비 import/package 변경 라인 점검. (d3e4ddb)
-- R1-2: `User`·`PlaybackLog` 계열 메인 10 + 테스트 5를 `user/`·`playback/`으로 이동(`git mv`). package/import 외 변경 없음, 접근 제어자 확장 없음. `EntityMappingTest`는 `entity/` 유지(R1-4에서 재배치 결정), `AuthControllerTest`는 `user/controller`로 이동. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
-- R1-3: `storage/service`(3), `transcode/service`(11), `transcode/dto`(`TranscodeEventDto`) 이동 + 테스트 13개. `TranscodeIntegrationTestBase`만 `public abstract`로 확장(R1-4 전까지 `service`에 남는 Track 통합 테스트 4개가 상속). `FakeProcessMain`·`SampleFixtures`·테스트 리소스는 `support`에 유지. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
+- R1-2: `User`·`PlaybackLog` 계열 메인 10 + 테스트 5를 `user/`·`playback/`으로 이동(`git mv`). package/import 외 변경 없음, 접근 제어자 확장 없음. `EntityMappingTest`는 R1-4까지 `entity/` 유지, `AuthControllerTest`는 `user/controller`로 이동. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
+- R1-3: `storage/service`(3), `transcode/service`(11), `transcode/dto`(`TranscodeEventDto`) 이동 + 테스트 13개. `TranscodeIntegrationTestBase`만 `public abstract`로 확장(타 패키지의 Track 통합 테스트가 상속). `FakeProcessMain`·`SampleFixtures`·테스트 리소스는 `support`에 유지. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
+- R1-4: `Track` 계열 메인 12 + 테스트 16을 `track/`으로 이동, 레이어 패키지(`controller`·`service`·`repository`·`entity`·`dto`) 제거. `TrackRepository` JPQL 문자열 FQN 3곳을 `track.entity.TrackStatus`로 수정. `EntityMappingTest`는 `track/entity`로 이동. 테스트 루트의 `support/`·`MusicApplicationTests`는 유지(완료 조건은 메인 소스 기준). 접근 제어자 확장 없음. 메인이 `build --rerun-tasks` 재실행해 57/450·실패 0 확인.
 
 ## 검토 필요 / 보고 사항
-- `TrackRepository` JPQL 문자열의 `com.streaming.music.entity.TrackStatus`는 R1-4(entity 이동) 때 함께 수정해야 함(문자열이라 컴파일러가 못 잡음). R1-2에서 `User`·`PlaybackLog` 이동 시 유사한 문자열 FQN이 없는지도 확인.
-- R1-4에서 `AuthControllerTest`(`user/controller`)의 `TrackController` import도 갱신 필요(에이전트 보고). `EntityMappingTest`(`entity/`) 재배치 위치도 R1-4에서 결정.
-- R1-4에서 Track 통합 테스트 4개(`DownloadIntegrationTest`, `PlayInfoIntegrationTest`, `TrackAuthIntegrationTest`, `TrackUploadRollbackIntegrationTest`)가 `track`으로 갈 때 `TranscodeIntegrationTestBase` import 갱신 필요.
 - `CorsConfigTest`는 빈을 직접 생성해 `@Primary`를 증명하지 못함. 실질 증거는 `CorsEnabledTest`·`SecurityConfigTest`. 제거 시 `NoUniqueBeanDefinitionException` 재현은 하지 않음.
 - 클래스별 테스트 수 비교용: TrackService 계열 합계 52(TrackServiceTest 24, Play 7, Download 10, Query 11). 재집계는 `build/test-results/test/*.xml`.
 - `.editorconfig` 없음 → 탭 설정 고정이 필요하면 별도 판단(범위 밖).
 - 환경: python 없음(grep/awk/sed 사용), `core.autocrlf=true`로 LF→CRLF 경고 출력(내용 영향 없음, 작업 트리·인덱스는 LF).
 
 ## 다음 작업
-- R1-4 `track` 도메인 이동(Phase 1 마지막) (Phase 1 끝까지 자율 진행)
+- Phase 2: R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환 (선행 R1-4 완료)
 
 ## 작업 원칙 (사용자 지시)
 - 기존 테스트 코드는 ROADMAP 후반(R4-2)에서 삭제된다. 그 전까지는 수정·이동한 코드에 대해 **기존 테스트를 직접 실행하며 검토**한다(에이전트 보고에 의존하지 않고 메인이 `./gradlew build --rerun-tasks` 또는 해당 테스트를 재실행해 통과와 테스트 수를 확인). 삭제 전까지가 회귀 안전망이다.

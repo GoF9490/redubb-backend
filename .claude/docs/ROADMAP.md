@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 5/16 Tasks 완료
+**📊 진행 상황**: 6/16 Tasks 완료
 
 ## 진행 보드
 
@@ -15,7 +15,7 @@
   - [x] R1-1 `global` 패키지 구성
   - [x] R1-2 `user`·`playback` 도메인 이동
   - [x] R1-3 `storage`·`transcode` 도메인 이동
-  - [ ] R1-4 `track` 도메인 이동
+  - [x] R1-4 `track` 도메인 이동
 - Phase 2 — Service 인터페이스/Impl 분리
   - [ ] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
   - [ ] R2-2 `UserService`·`PlaybackLogService` 분리
@@ -93,40 +93,41 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
   - [구현] `ContentDispositionBuilder.FILENAME_MAX_LENGTH`, `InternalRedirectPathConverter.INTERNAL_PREFIX`가 package-private이다. 다른 패키지 참조 여부 확인
   - [검토] `ErrorTestController`, `SecurityTestController` 같은 테스트 지원 클래스도 함께 이동(R4-2에서 삭제 예정)
 
-### [ ] R1-2 `user`·`playback` 도메인 이동
+### [x] R1-2 `user`·`playback` 도메인 이동
 - **목표:**
   - `user/`: `User`(entity), `UserRepository`, `UserService`·`OAuth2UserInfo`(service), `UserResponse`(dto/response), `AuthController`
   - `playback/`: `PlaybackLog`·`ActionType`(entity), `PlaybackLogRepository`, `PlaybackLogService`
 - **선행:** R1-1
 - **완료 조건:** (테스트: 기존 테스트 이동 + 실행)
-  - [ ] PRD-05 §5 `user/`, `playback/` 트리와 일치
-  - [ ] `./gradlew build` 통과
+  - [x] PRD-05 §5 `user/`, `playback/` 트리와 일치
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [탐색] `global/security`(`CustomOidcUserService`, `AuthenticatedOidcUser`)가 `UserService`·`User`를 참조하므로 import 변경 범위가 넓다
   - [검토] JPA 엔티티 스캔은 루트 패키지 기준이라 설정 변경이 필요 없는지 `EntityMappingTest`로 확인
 
-### [ ] R1-3 `storage`·`transcode` 도메인 이동
+### [x] R1-3 `storage`·`transcode` 도메인 이동
 - **목표:**
   - `storage/service`: `StorageService`, `MinioStorageService`, `StorageBucketInitializer`
   - `transcode/service`: `HlsTranscodeService`, `TranscodeProcessor`, `TranscodeTaskDispatcher`, `ApplicationEventTranscodeTaskDispatcher`, `TranscodeEventRelay`, `TranscodeRejectionHandler`, `TranscodeRecoveryRunner`, `FfmpegCommandRunner`, `ProcessFfmpegCommandRunner`, `FfmpegCommandBuilder`, `FfmpegResult`
   - `transcode/dto`: `TranscodeEventDto`(현재 `dto/event`)
 - **선행:** R1-2
 - **완료 조건:** (테스트: 기존 테스트 이동 + 실행)
-  - [ ] PRD-05 §5 트리와 일치
-  - [ ] `Transcode*IntegrationTest`, `TranscodeIntegrationTestBase`가 이동 후에도 통과
-  - [ ] `./gradlew build` 통과
+  - [x] PRD-05 §5 트리와 일치
+  - [x] `Transcode*IntegrationTest`, `TranscodeIntegrationTestBase`가 이동 후에도 통과
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [구현] `ProcessFfmpegCommandRunner`의 package-private 상수(`START_FAILED_SUMMARY` 등)와 `FakeProcessMain`(test support)의 연결 확인
   - [검토] `@Async("transcodeExecutor")`·`@TransactionalEventListener` 연결은 이동 후 `TranscodeEventWiringIntegrationTest`로 검증
 
-### [ ] R1-4 `track` 도메인 이동
+### [x] R1-4 `track` 도메인 이동
 - **목표:** `Track`·`TrackStatus`(entity), `TrackRepository`, `TrackService`·`AudioMetadataValidator`·`MediaUrlResolver`(service), `TrackUploadRequest`(dto/request), `TrackResponse`·`TrackPageResponse`·`StreamPlayResponse`·`DownloadInfo`(dto/response), `TrackController`를 `track/`으로 옮기고, 비게 된 레이어 패키지(`controller`, `service`, `repository`, `entity`, `dto`)를 없앤다.
 - **선행:** R1-3
 - **완료 조건:** (테스트: 기존 테스트 이동 + 실행)
-  - [ ] 루트 아래에 `global`, `track`, `user`, `playback`, `transcode`, `storage` 패키지와 `MusicApplication`만 남음
-  - [ ] `./gradlew build` 통과
+  - [x] 루트 아래에 `global`, `track`, `user`, `playback`, `transcode`, `storage` 패키지와 `MusicApplication`만 남음
+  - [x] `./gradlew build` 통과
 - **주의:**
-  - [구현] `TrackService`의 package-private 상수(`TITLE_MAX_LENGTH`, `MAX_PAGE_SIZE` 등)를 테스트가 참조한다. 테스트 이동 경로를 맞춘다
+  - [구현] `TrackService`의 package-private 상수(`TITLE_MAX_LENGTH`, `MAX_PAGE_SIZE` 등)는 확인 결과 테스트가 참조하지 않는다(R1-4 계획 단계에서 grep 확인). 테스트는 `track/service`로 함께 이동한다
+  - [구현] `TrackRepository` JPQL의 문자열 FQN `com.streaming.music.entity.TrackStatus` 3곳을 `track.entity`로 수정한다(컴파일러가 못 잡음)
   - [검토] 예외 클래스(`TrackNotFoundException` 등)는 PRD상 `global/exception`에 남긴다(도메인으로 옮기지 않음)
 
 ---
