@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 10/16 Tasks 완료
+**📊 진행 상황**: 11/16 Tasks 완료
 
 ## 진행 보드
 
@@ -22,7 +22,7 @@
   - [x] R2-3 `TrackService` 분리 및 테스트 통합
   - [x] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
 - Phase 3 — 설정값 외부화
-  - [ ] R3-1 `AsyncProperties`·`TrackProperties` 도입
+  - [x] R3-1 `AsyncProperties`·`TrackProperties` 도입
   - [ ] R3-2 `JwtProperties`·`CorsProperties` 확장
   - [ ] R3-3 `AudioProperties` 확장
 - Phase 4 — 테스트 범위 정리
@@ -189,16 +189,16 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
 > 공통 주의: 목표 yaml은 PRD-05 §4.2를 그대로 따른다. PRD에 **없는** 코드 상수(예: 쿠키 값 최대 길이, CORS preflight max-age, 프로세스 kill 대기 시간)는 옮길지 임의로 정하지 말고 목록으로 정리해 보고한다. 프로토콜·포맷 상수(`Bearer `, `index.m3u8`, 에러 코드 문자열 등)는 기준값이 아니므로 코드에 남긴다.
 > Properties·Config 클래스에는 새 테스트를 쓰지 않는다. 기존 `ConfigurationPropertiesBindingTest`는 R4-2 전까지 갱신만 한다.
 
-### [ ] R3-1 `AsyncProperties`·`TrackProperties` 도입
+### [x] R3-1 `AsyncProperties`·`TrackProperties` 도입
 - **목표:**
   - `app.async.transcode.{core-pool-size, max-pool-size, queue-capacity}` → `AsyncProperties`, `AsyncConfig` 상수 제거
   - `app.track.{default-page-size, max-page-size}` → `TrackProperties`, `TrackServiceImpl.MAX_PAGE_SIZE`와 `TrackController`의 `defaultValue = "20"` 제거
 - **선행:** R2-4
 - **완료 조건:** (테스트: **`TrackServiceImplTest` 갱신 필수**)
-  - [ ] `application.yaml`에 두 섹션 추가(PRD-05 §4.2 값 그대로)
-  - [ ] `TrackServiceImplTest`에 size 미지정 시 기본값 적용, 최대값 초과 시 제한 케이스 포함
-  - [ ] `AsyncConfigTest`, `TranscodeQueue*IntegrationTest`가 상수 대신 프로퍼티 값으로 통과
-  - [ ] `./gradlew build` 통과
+  - [x] `application.yaml`에 두 섹션 추가(PRD-05 §4.2 값 그대로)
+  - [x] `TrackServiceImplTest`에 size 미지정 시 기본값 적용, 최대값 초과 시 제한 케이스 포함
+  - [x] `AsyncConfigTest`, `TranscodeQueue*IntegrationTest`가 상수 대신 프로퍼티 값으로 통과
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [계획] 어노테이션 속성(`defaultValue`)에는 프로퍼티를 넣을 수 없다. `@RequestParam(required = false) Integer size`로 받고 기본값은 서비스에서 적용하는 방식을 검토
   - [구현] `TRANSCODE_EXECUTOR` 빈 이름과 `THREAD_NAME_PREFIX`는 기준값이 아니므로 상수로 유지
