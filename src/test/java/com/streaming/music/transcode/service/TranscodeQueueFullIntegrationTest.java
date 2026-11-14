@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.doThrow;
 
 import com.streaming.music.transcode.dto.TranscodeEventDto;
-import com.streaming.music.entity.Track;
-import com.streaming.music.entity.TrackStatus;
-import com.streaming.music.repository.TrackRepository;
+import com.streaming.music.track.entity.Track;
+import com.streaming.music.track.entity.TrackStatus;
+import com.streaming.music.track.repository.TrackRepository;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;

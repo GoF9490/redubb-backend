@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.streaming.music.playback.entity.ActionType;
 import com.streaming.music.playback.entity.PlaybackLog;
-import com.streaming.music.entity.Track;
+import com.streaming.music.track.entity.Track;
 import com.streaming.music.user.entity.User;
 import com.streaming.music.playback.repository.PlaybackLogRepository;
 import com.streaming.music.user.repository.UserRepository;

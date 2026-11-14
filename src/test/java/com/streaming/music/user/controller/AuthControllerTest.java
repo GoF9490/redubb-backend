@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.streaming.music.controller.TrackController;
+import com.streaming.music.track.controller.TrackController;
 import com.streaming.music.global.config.SecurityConfig;
 import com.streaming.music.global.properties.JwtProperties;
 import com.streaming.music.user.entity.User;
@@ -18,8 +18,8 @@ import com.streaming.music.global.exception.UnauthorizedException;
 import com.streaming.music.global.security.CustomOidcUserService;
 import com.streaming.music.global.security.JwtTokenProvider;
 import com.streaming.music.global.security.RestAuthenticationEntryPoint;
-import com.streaming.music.service.MediaUrlResolver;
-import com.streaming.music.service.TrackService;
+import com.streaming.music.track.service.MediaUrlResolver;
+import com.streaming.music.track.service.TrackService;
 import com.streaming.music.user.service.UserService;
 import java.time.Clock;
 import java.time.Instant;

@@ -1,7 +1,7 @@
 package com.streaming.music.transcode.service;
 
-import com.streaming.music.entity.Track;
-import com.streaming.music.repository.TrackRepository;
+import com.streaming.music.track.entity.Track;
+import com.streaming.music.track.repository.TrackRepository;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;

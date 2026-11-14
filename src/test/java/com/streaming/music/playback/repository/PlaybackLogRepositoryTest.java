@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.streaming.music.playback.entity.ActionType;
 import com.streaming.music.playback.entity.PlaybackLog;
-import com.streaming.music.entity.Track;
+import com.streaming.music.track.entity.Track;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

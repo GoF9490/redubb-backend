@@ -5,8 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.global.config.AsyncConfig;
-import com.streaming.music.entity.Track;
-import com.streaming.music.entity.TrackStatus;
+import com.streaming.music.track.entity.Track;
+import com.streaming.music.track.entity.TrackStatus;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;

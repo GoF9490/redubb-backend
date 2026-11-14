@@ -5,10 +5,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.transcode.dto.TranscodeEventDto;
-import com.streaming.music.entity.Track;
-import com.streaming.music.entity.TrackStatus;
+import com.streaming.music.track.entity.Track;
+import com.streaming.music.track.entity.TrackStatus;
 import com.streaming.music.playback.repository.PlaybackLogRepository;
-import com.streaming.music.repository.TrackRepository;
+import com.streaming.music.track.repository.TrackRepository;
 import com.streaming.music.user.repository.UserRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;

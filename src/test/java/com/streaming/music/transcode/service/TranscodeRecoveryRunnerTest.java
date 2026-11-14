@@ -7,7 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.streaming.music.global.properties.AudioProperties;
-import com.streaming.music.repository.TrackRepository;
+import com.streaming.music.track.repository.TrackRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

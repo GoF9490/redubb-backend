@@ -1,7 +1,7 @@
 package com.streaming.music.transcode.service;
 
 import com.streaming.music.global.properties.AudioProperties;
-import com.streaming.music.repository.TrackRepository;
+import com.streaming.music.track.repository.TrackRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

@@ -6,12 +6,12 @@ import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.streaming.music.dto.request.TrackUploadRequest;
-import com.streaming.music.entity.Track;
-import com.streaming.music.entity.TrackStatus;
+import com.streaming.music.track.dto.request.TrackUploadRequest;
+import com.streaming.music.track.entity.Track;
+import com.streaming.music.track.entity.TrackStatus;
 import com.streaming.music.user.entity.User;
 import com.streaming.music.support.SampleFixtures;
-import com.streaming.music.service.TrackService;
+import com.streaming.music.track.service.TrackService;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
