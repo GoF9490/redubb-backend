@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 14/16 Tasks 완료
+**📊 진행 상황**: 15/16 Tasks 완료
 
 ## 진행 보드
 
@@ -27,7 +27,7 @@
   - [x] R3-3 `AudioProperties` 확장
 - Phase 4 — 테스트 범위 정리
   - [x] R4-1 허용 범위 단위 테스트 보강
-  - [ ] R4-2 비허용 테스트 삭제
+  - [x] R4-2 비허용 테스트 삭제
 - Phase 5 — 최종 검토
   - [ ] R5-1 규칙 준수 감사 및 문서 동기화
 
@@ -253,7 +253,7 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
 - **주의:**
   - [탐색] `TrackStatus`, `ActionType` Enum에 로직이 있으면 Enum 테스트도 대상이다
 
-### [ ] R4-2 비허용 테스트 삭제
+### [x] R4-2 비허용 테스트 삭제
 - **목표:** 규칙상 허용되지 않는 테스트와 그 지원 클래스를 삭제한다.
   - Controller: `AuthControllerTest`, `TrackControllerTest`
   - Repository: `TrackRepositoryTest`, `UserRepositoryTest`, `PlaybackLogRepositoryTest`
@@ -264,10 +264,10 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
   - 지원 클래스: `ErrorTestController`, `SecurityTestController`, `FakeProcessMain`, `SampleFixtureTest`(남은 테스트가 쓰지 않으면 `SampleFixtures`와 test 리소스도)
 - **선행:** R4-1
 - **완료 조건:** (테스트: 남은 테스트 실행)
-  - [ ] **삭제 직전** `./gradlew build --rerun-tasks` 전체 그린 확인(마지막 회귀 확인)
-  - [ ] 남은 테스트가 `*ServiceImplTest`, Entity 테스트, Util 테스트뿐
-  - [ ] 남은 테스트 중 Spring 컨텍스트를 띄우는 것이 0개(`@SpringBootTest`·`@WebMvcTest`·`@DataJpaTest` 검색 결과 없음)
-  - [ ] `./gradlew build` 통과
+  - [x] **삭제 직전** `./gradlew build --rerun-tasks` 전체 그린 확인(마지막 회귀 확인)
+  - [x] 남은 테스트가 `*ServiceImplTest`, Entity 테스트, Util 테스트뿐
+  - [x] 남은 테스트 중 Spring 컨텍스트를 띄우는 것이 0개(`@SpringBootTest`·`@WebMvcTest`·`@DataJpaTest` 검색 결과 없음)
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [계획] `MusicApplicationTests.contextLoads`는 규칙상 삭제 대상이지만 유일한 기동 확인이다. 삭제하면 R5-1의 `bootRun` 확인으로 대신한다
   - [구현] 테스트 전용 의존성(예: H2 test scope, `spring-security-test`)이 남은 테스트에서 안 쓰이게 돼도 `build.gradle.kts`는 바꾸지 않는다. 정리가 필요하면 보고만 한다
