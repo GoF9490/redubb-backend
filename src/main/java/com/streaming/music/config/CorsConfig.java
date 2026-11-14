@@ -8,6 +8,7 @@ import java.util.Set;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -26,7 +27,9 @@ public class CorsConfig {
 
     private static final Set<String> ALLOWED_SCHEMES = Set.of("http", "https");
 
+    /** MVC 자동 등록 빈(mvcHandlerMappingIntrospector)도 같은 타입이므로 이 빈을 우선 주입 대상으로 지정한다. */
     @Bean
+    @Primary
     public CorsConfigurationSource corsConfigurationSource(CorsProperties corsProperties) {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         List<String> origins = corsProperties.allowedOrigins();
