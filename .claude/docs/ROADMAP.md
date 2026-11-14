@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 11/16 Tasks 완료
+**📊 진행 상황**: 12/16 Tasks 완료
 
 ## 진행 보드
 
@@ -23,7 +23,7 @@
   - [x] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
 - Phase 3 — 설정값 외부화
   - [x] R3-1 `AsyncProperties`·`TrackProperties` 도입
-  - [ ] R3-2 `JwtProperties`·`CorsProperties` 확장
+  - [x] R3-2 `JwtProperties`·`CorsProperties` 확장
   - [ ] R3-3 `AudioProperties` 확장
 - Phase 4 — 테스트 범위 정리
   - [ ] R4-1 허용 범위 단위 테스트 보강
@@ -204,17 +204,17 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
   - [구현] `TRANSCODE_EXECUTOR` 빈 이름과 `THREAD_NAME_PREFIX`는 기준값이 아니므로 상수로 유지
   - [검토] 통합 테스트가 `AsyncConfig.QUEUE_CAPACITY`로 큐 포화를 재현하고 있으므로 테스트 프로퍼티로 값을 고정했는지 확인
 
-### [ ] R3-2 `JwtProperties`·`CorsProperties` 확장
+### [x] R3-2 `JwtProperties`·`CorsProperties` 확장
 - **목표:**
   - `app.jwt.authorization-cookie-max-age-seconds` → `HttpCookieOAuth2AuthorizationRequestRepository.COOKIE_MAX_AGE_SECONDS` 대체
   - `app.jwt.allowed-failure-error-codes` → `OAuth2AuthenticationFailureHandler.ALLOWED_ERROR_CODES` 대체
   - `app.cors.{allowed-methods, allowed-headers}` → `CorsConfig` 고정 목록 대체
 - **선행:** R2-4
 - **완료 조건:** (테스트: 기존 테스트 실행만. 대상이 모두 `@Component`/Config라 신규 작성 없음)
-  - [ ] `application.yaml`에 PRD-05 §4.2 값 추가
-  - [ ] `SecurityConfigTest`, `OAuth2LoginFlowTest`, `Cors*Test`, `HttpCookieOAuth2AuthorizationRequestRepositoryTest`, `OAuth2AuthenticationFailureHandlerTest` 통과
-  - [ ] PRD에 없는 상수(`MAX_COOKIE_VALUE_LENGTH`, `MAX_REDIRECT_URI_LENGTH`, `PREFLIGHT_MAX_AGE_SECONDS`, `ALLOWED_SCHEMES`)는 처리 방침을 보고
-  - [ ] `./gradlew build` 통과
+  - [x] `application.yaml`에 PRD-05 §4.2 값 추가
+  - [x] `SecurityConfigTest`, `OAuth2LoginFlowTest`, `Cors*Test`, `HttpCookieOAuth2AuthorizationRequestRepositoryTest`, `OAuth2AuthenticationFailureHandlerTest` 통과
+  - [x] PRD에 없는 상수(`MAX_COOKIE_VALUE_LENGTH`, `MAX_REDIRECT_URI_LENGTH`, `PREFLIGHT_MAX_AGE_SECONDS`, `ALLOWED_SCHEMES`)는 처리 방침을 보고
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [탐색] `HttpCookieOAuth2AuthorizationRequestRepository`는 `SecurityConfig`에서 `new`로 만들므로 생성자에 `JwtProperties`를 넘기도록 바꿔야 한다
   - [구현] 빈 목록·`null` 처리는 기존 `PropertyUtils.normalizeList`를 재사용
