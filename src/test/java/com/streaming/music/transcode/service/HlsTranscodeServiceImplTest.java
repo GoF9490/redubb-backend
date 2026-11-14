@@ -2,6 +2,7 @@ package com.streaming.music.transcode.service;
 
 import com.streaming.music.storage.service.StorageService;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -24,6 +25,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,7 +62,7 @@ class HlsTranscodeServiceImplTest {
 
 	@BeforeEach
 	void setUp() {
-		AudioProperties properties = new AudioProperties(workDir.toString(), "ffmpeg", 3, 6, "192k", 10485760L);
+		AudioProperties properties = new AudioProperties(workDir.toString(), "ffmpeg", 3, 6, "192k", 10485760L, 44100, 2, 500, 2, List.of(), List.of());
 		service = new HlsTranscodeServiceImpl(trackRepository, storageService, ffmpegCommandRunner,
 				properties, transactionManager);
 		trackId = UUID.randomUUID();
@@ -169,6 +171,44 @@ class HlsTranscodeServiceImplTest {
 		assertThat(workDir.resolve(trackId.toString())).doesNotExist();
 	}
 
+
+	private HlsTranscodeServiceImpl createService(int errorMessageMaxLength) {
+		AudioProperties properties = new AudioProperties(workDir.toString(), "ffmpeg", 3, 6, "192k", 10485760L,
+				44100, 2, errorMessageMaxLength, 2, List.of(), List.of());
+		return new HlsTranscodeServiceImpl(trackRepository, storageService, ffmpegCommandRunner,
+				properties, transactionManager);
+	}
+
+	@Test
+	@DisplayName("FAILED 오류 메시지는 설정된 최대 길이로 절단해 기록한다")
+	void marksFailedWithMessageTruncatedToConfiguredLength() {
+		stubTrackFound();
+		when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.failed(1, "e".repeat(300)));
+
+		createService(100).process(dto);
+
+		assertThat(track.getStatus()).isEqualTo(TrackStatus.FAILED);
+		assertThat(track.getErrorMessage()).hasSize(100);
+	}
+
+	@Test
+	@DisplayName("설정된 최대 길이 이하의 오류 메시지는 그대로 기록한다")
+	void keepsMessageWithinConfiguredLengthUntouched() {
+		stubTrackFound();
+		String message = "m".repeat(100);
+		when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.failed(1, message));
+
+		createService(100).process(dto);
+
+		assertThat(track.getErrorMessage()).isEqualTo(message);
+	}
+
+	@Test
+	@DisplayName("오류 메시지 최대 길이 설정이 컬럼 길이를 넘으면 생성에 실패한다")
+	void rejectsErrorMessageLengthExceedingColumnLimit() {
+		assertThatThrownBy(() -> createService(Track.ERROR_MESSAGE_MAX_LENGTH + 1))
+				.isInstanceOf(IllegalStateException.class);
+	}
 	@Test
 	@DisplayName("FFmpeg 타임아웃이면 FFMPEG_TIMEOUT으로 FAILED를 기록한다")
 	void marksFailedWithTimeoutMessage() {

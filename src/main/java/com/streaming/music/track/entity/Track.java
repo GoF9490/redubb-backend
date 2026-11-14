@@ -36,7 +36,8 @@ import lombok.NoArgsConstructor;
 public class Track {
 
 	public static final String DEFAULT_ARTIST = "Unknown Artist";
-	private static final int ERROR_MESSAGE_MAX_LENGTH = 500;
+	/** error_message 컬럼 길이(DDL 계약, PRD-07). 설정값의 상한이자 절단 안전망이다. */
+	public static final int ERROR_MESSAGE_MAX_LENGTH = 500;
 
 	@Id
 	@Column(name = "track_id", nullable = false, updatable = false)

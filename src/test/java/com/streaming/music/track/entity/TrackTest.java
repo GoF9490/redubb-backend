@@ -43,6 +43,16 @@ class TrackTest {
 		assertThat(track.getErrorMessage()).hasSize(500);
 	}
 
+
+	@Test
+	@DisplayName("FAILED 전이 시 컬럼 길이(500자)와 같은 메시지는 절단하지 않는다")
+	void keepsErrorMessageOfExactColumnLength() {
+		Track track = newTrack();
+
+		track.markFailed("x".repeat(Track.ERROR_MESSAGE_MAX_LENGTH));
+
+		assertThat(track.getErrorMessage()).hasSize(Track.ERROR_MESSAGE_MAX_LENGTH);
+	}
 	@Test
 	@DisplayName("FAILED 전이 시 메시지가 null이어도 안전하게 처리한다")
 	void markFailedWithNullMessage() {

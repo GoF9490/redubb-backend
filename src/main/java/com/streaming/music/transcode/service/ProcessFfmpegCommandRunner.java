@@ -54,7 +54,7 @@ public class ProcessFfmpegCommandRunner implements FfmpegCommandRunner {
 		}
 		closeStdin(process);
 
-		LogTailBuffer tail = new LogTailBuffer(FfmpegResult.MAX_SUMMARY_LENGTH);
+		LogTailBuffer tail = new LogTailBuffer(audioProperties.errorMessageMaxLength());
 		Thread reader = startReader(process, tail);
 		try {
 			if (!process.waitFor(timeout.toNanos(), TimeUnit.NANOSECONDS)) {

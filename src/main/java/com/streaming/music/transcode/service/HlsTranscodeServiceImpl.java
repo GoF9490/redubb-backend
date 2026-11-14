@@ -60,6 +60,10 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
 		this.trackRepository = trackRepository;
 		this.storageService = storageService;
 		this.ffmpegCommandRunner = ffmpegCommandRunner;
+		if (audioProperties.errorMessageMaxLength() > Track.ERROR_MESSAGE_MAX_LENGTH) {
+			throw new IllegalStateException("app.audio.error-message-max-length는 error_message 컬럼 길이("
+					+ Track.ERROR_MESSAGE_MAX_LENGTH + ")를 넘을 수 없습니다: " + audioProperties.errorMessageMaxLength());
+		}
 		this.audioProperties = audioProperties;
 		this.requiresNewTemplate = new TransactionTemplate(transactionManager);
 		this.requiresNewTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -150,10 +154,17 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
 	/** FAILED 기록. 갱신 실패는 로그만 남기고 삼킨다. */
 	private void recordFailure(UUID trackId, String message) {
 		try {
-			updateTrack(trackId, track -> track.markFailed(message));
+			String truncated = truncateMessage(message);
+			updateTrack(trackId, track -> track.markFailed(truncated));
 		} catch (Exception e) {
 			log.error("FAILED 갱신에 실패했습니다. trackId={}", trackId, e);
 		}
+	}
+
+	/** 설정된 최대 길이(app.audio.error-message-max-length)로 앞부분을 보존해 절단한다. */
+	private String truncateMessage(String message) {
+		int maxLength = audioProperties.errorMessageMaxLength();
+		return (message != null && message.length() > maxLength) ? message.substring(0, maxLength) : message;
 	}
 
 	private void updateTrack(UUID trackId, Consumer<Track> mutation) {

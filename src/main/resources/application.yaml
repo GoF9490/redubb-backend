@@ -69,6 +69,21 @@ app:
     hls-segment-seconds: 6
     hls-audio-bitrate: 192k
     max-artwork-size-bytes: 10485760 # 커스텀 앨범자켓 최대 10MB
+    hls-audio-sample-rate: 44100 # FFmpeg -ar
+    hls-audio-channels: 2        # FFmpeg -ac
+    error-message-max-length: 500 # tracks.error_message 요약 최대 길이
+    recovery-stale-threshold-multiplier: 2 # 기동 시 정리 대상 기준 = ffmpeg-timeout-minutes × 배수 (§6.3-5)
+    allowed-audio-mime-types: # Tika 감지 MIME 허용 목록 (§6.2-2)
+      - audio/mpeg
+      - audio/wav
+      - audio/x-wav
+      - audio/vnd.wave
+      - audio/flac
+      - audio/x-flac
+      - audio/mp4
+    allowed-artwork-mime-types: # 앨범자켓 허용 MIME (§6.2-3)
+      - image/jpeg
+      - image/png
 
   async: # AsyncProperties
     transcode: # transcodeExecutor 스레드 풀 (§6.3-1)

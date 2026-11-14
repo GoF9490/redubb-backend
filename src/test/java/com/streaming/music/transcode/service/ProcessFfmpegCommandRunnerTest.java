@@ -20,7 +20,7 @@ class ProcessFfmpegCommandRunnerTest {
 
 	private static final Duration LONG_TIMEOUT = Duration.ofSeconds(20);
 
-	private final AudioProperties audioProperties = new AudioProperties("/tmp", "ffmpeg", 3, 6, "192k", 1L);
+	private final AudioProperties audioProperties = new AudioProperties("/tmp", "ffmpeg", 3, 6, "192k", 1L, 44100, 2, 500, 2, List.of(), List.of());
 	private final ProcessFfmpegCommandRunner runner =
 			new ProcessFfmpegCommandRunner(new FfmpegCommandBuilder(audioProperties), audioProperties);
 

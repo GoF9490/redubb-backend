@@ -12,7 +12,7 @@ class FfmpegCommandBuilderTest {
 
 	private FfmpegCommandBuilder createBuilder() {
 		return new FfmpegCommandBuilder(
-				new AudioProperties("/tmp/audio-work", "/usr/bin/ffmpeg", 3, 6, "192k", 10485760L));
+				new AudioProperties("/tmp/audio-work", "/usr/bin/ffmpeg", 3, 6, "192k", 10485760L, 44100, 2, 500, 2, List.of(), List.of()));
 	}
 
 	@Test
@@ -48,7 +48,7 @@ class FfmpegCommandBuilderTest {
 	@DisplayName("설정 값(비트레이트, 세그먼트 초, 실행 경로)을 반영한다")
 	void applyAudioProperties() {
 		FfmpegCommandBuilder builder = new FfmpegCommandBuilder(
-				new AudioProperties("/w", "C:\\ffmpeg\\ffmpeg.exe", 3, 10, "128k", 1L));
+				new AudioProperties("/w", "C:\\ffmpeg\\ffmpeg.exe", 3, 10, "128k", 1L, 44100, 2, 500, 2, List.of(), List.of()));
 
 		List<String> command = builder.buildHlsCommand(Path.of("a.wav"), Path.of("out"));
 

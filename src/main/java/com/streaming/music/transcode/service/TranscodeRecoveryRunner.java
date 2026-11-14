@@ -56,7 +56,8 @@ public class TranscodeRecoveryRunner implements ApplicationRunner {
 	public void run(ApplicationArguments args) {
 		// 같은 시각 값을 threshold 계산과 updatedAt 지정에 함께 사용한다
 		Instant now = Instant.now(clock);
-		Instant threshold = now.minus(Duration.ofMinutes(audioProperties.ffmpegTimeoutMinutes() * 2L));
+		long staleMinutes = audioProperties.ffmpegTimeoutMinutes() * (long) audioProperties.recoveryStaleThresholdMultiplier();
+		Instant threshold = now.minus(Duration.ofMinutes(staleMinutes));
 		try {
 			Integer updated = transactionTemplate.execute(
 					status -> trackRepository.failStaleTracks(threshold, now, INTERRUPTED_MESSAGE));

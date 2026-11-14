@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,7 +29,10 @@ class AudioMetadataValidatorTest {
 	private static final long MAX_ARTWORK_BYTES = 10_485_760L;
 
 	private final AudioMetadataValidator validator = new AudioMetadataValidator(
-			new AudioProperties("/tmp/audio-work", "/usr/bin/ffmpeg", 3, 6, "192k", MAX_ARTWORK_BYTES));
+			new AudioProperties("/tmp/audio-work", "/usr/bin/ffmpeg", 3, 6, "192k", MAX_ARTWORK_BYTES,
+					44100, 2, 500, 2,
+					List.of("audio/mpeg", "audio/wav", "audio/x-wav", "audio/vnd.wave", "audio/flac", "audio/x-flac", "audio/mp4"),
+					List.of("image/jpeg", "image/png")));
 
 	@TempDir
 	Path tempDir;

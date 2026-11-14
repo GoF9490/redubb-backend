@@ -11,6 +11,7 @@ import com.streaming.music.track.repository.TrackRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ class TranscodeRecoveryRunnerTest {
 	}
 
 	private TranscodeRecoveryRunner createRunner(int timeoutMinutes) {
-		AudioProperties properties = new AudioProperties("/tmp/w", "ffmpeg", timeoutMinutes, 6, "192k", 1L);
+		AudioProperties properties = new AudioProperties("/tmp/w", "ffmpeg", timeoutMinutes, 6, "192k", 1L, 44100, 2, 500, 2, List.of(), List.of());
 		return new TranscodeRecoveryRunner(trackRepository, properties, clock, transactionManager);
 	}
 

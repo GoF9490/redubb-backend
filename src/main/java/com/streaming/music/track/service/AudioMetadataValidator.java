@@ -3,9 +3,12 @@ package com.streaming.music.track.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,9 +50,6 @@ public class AudioMetadataValidator {
 			"audio/mp4", "m4a"
 	);
 
-	/** 허용 앨범자켓 MIME. */
-	private static final Set<String> ALLOWED_ARTWORK_MIMES = Set.of("image/jpeg", "image/png");
-
 	static final String FALLBACK_TITLE = "Unknown Title";
 	static final String FALLBACK_ARTIST = "Unknown Artist";
 	private static final int MIN_DURATION_SECONDS = 1;
@@ -67,8 +67,40 @@ public class AudioMetadataValidator {
 
 	private final AudioProperties audioProperties;
 
+	/** 설정(app.audio.allowed-audio-mime-types)에서 읽은 허용 오디오 MIME. 항상 MIME_TO_EXTENSION의 부분집합이다. */
+	private final Set<String> allowedAudioMimes;
+
+	/** 설정(app.audio.allowed-artwork-mime-types)에서 읽은 허용 앨범자켓 MIME. */
+	private final Set<String> allowedArtworkMimes;
+
 	public AudioMetadataValidator(AudioProperties audioProperties) {
 		this.audioProperties = audioProperties;
+		this.allowedAudioMimes = validateAllowedAudioMimes(audioProperties.allowedAudioMimeTypes());
+		this.allowedArtworkMimes = validateAllowedArtworkMimes(audioProperties.allowedArtworkMimeTypes());
+	}
+
+	/** 설정 오류는 기동 시 실패시킨다(fail-fast). 확장자 매핑이 없는 MIME은 허용할 수 없다. */
+	private static Set<String> validateAllowedAudioMimes(List<String> configured) {
+		if (configured.isEmpty()) {
+			throw new IllegalStateException("app.audio.allowed-audio-mime-types가 비어 있습니다.");
+		}
+		Set<String> allowed = new LinkedHashSet<>();
+		for (String mime : configured) {
+			String normalized = normalizeMime(mime);
+			if (!MIME_TO_EXTENSION.containsKey(normalized)) {
+				throw new IllegalStateException(
+						"app.audio.allowed-audio-mime-types에 확장자 매핑이 없는 MIME이 있습니다: " + mime);
+			}
+			allowed.add(normalized);
+		}
+		return Set.copyOf(allowed);
+	}
+
+	private static Set<String> validateAllowedArtworkMimes(List<String> configured) {
+		if (configured.isEmpty()) {
+			throw new IllegalStateException("app.audio.allowed-artwork-mime-types가 비어 있습니다.");
+		}
+		return configured.stream().map(AudioMetadataValidator::normalizeMime).collect(Collectors.toUnmodifiableSet());
 	}
 
 	/** 음원 검증 결과 (Tika 감지 MIME과 정규화된 저장 확장자). */
@@ -212,7 +244,7 @@ public class AudioMetadataValidator {
 			throw new InvalidAudioFormatException("음원 파일을 읽을 수 없습니다.", e);
 		}
 		String normalizedMime = normalizeMime(detectedMime);
-		String extension = MIME_TO_EXTENSION.get(normalizedMime);
+		String extension = allowedAudioMimes.contains(normalizedMime) ? MIME_TO_EXTENSION.get(normalizedMime) : null;
 		if (extension == null) {
 			throw new InvalidAudioFormatException("허용되지 않는 오디오 형식입니다: " + detectedMime);
 		}
@@ -233,7 +265,7 @@ public class AudioMetadataValidator {
 			throw new InvalidArtworkException("앨범자켓 크기가 제한을 초과했습니다.");
 		}
 		String normalizedMime = normalizeMime(tika.detect(artworkBytes));
-		if (!ALLOWED_ARTWORK_MIMES.contains(normalizedMime)) {
+		if (!allowedArtworkMimes.contains(normalizedMime)) {
 			throw new InvalidArtworkException("앨범자켓은 JPEG/PNG만 허용됩니다: " + normalizedMime);
 		}
 		return normalizedMime;

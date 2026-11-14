@@ -1,5 +1,7 @@
 package com.streaming.music.transcode.service;
 
+import com.streaming.music.track.entity.Track;
+
 /**
  * FFmpeg 실행 결과.
  *
@@ -12,7 +14,7 @@ package com.streaming.music.transcode.service;
 public record FfmpegResult(Status status, int exitCode, String logSummary) {
 
 	/** 로그 요약 최대 길이(문자). */
-	public static final int MAX_SUMMARY_LENGTH = 500;
+	public static final int MAX_SUMMARY_LENGTH = Track.ERROR_MESSAGE_MAX_LENGTH;
 
 	public enum Status {
 		SUCCESS,

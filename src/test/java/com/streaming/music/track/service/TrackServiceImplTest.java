@@ -110,7 +110,7 @@ class TrackServiceImplTest {
 	@BeforeEach
 	void setUp() {
 		audioProperties = new AudioProperties(
-				workDir.toString(), "/usr/bin/ffmpeg", 3, 6, "192k", 10485760L);
+				workDir.toString(), "/usr/bin/ffmpeg", 3, 6, "192k", 10485760L, 44100, 2, 500, 2, List.of(), List.of());
 		clock = Clock.fixed(Instant.parse("2026-03-05T10:00:00Z"), ZoneOffset.UTC);
 		transactionManager = mock(PlatformTransactionManager.class);
 		trackService = createTrackService(
