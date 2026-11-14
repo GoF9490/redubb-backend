@@ -37,7 +37,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
-class HlsTranscodeServiceTest {
+class HlsTranscodeServiceImplTest {
 
 	private static final String ORIGINAL_KEY = "original/2026/11/a.mp3";
 
@@ -53,7 +53,7 @@ class HlsTranscodeServiceTest {
 	@TempDir
 	Path workDir;
 
-	private HlsTranscodeService service;
+	private HlsTranscodeServiceImpl service;
 	private UUID trackId;
 	private Track track;
 	private TranscodeEventDto dto;
@@ -61,7 +61,7 @@ class HlsTranscodeServiceTest {
 	@BeforeEach
 	void setUp() {
 		AudioProperties properties = new AudioProperties(workDir.toString(), "ffmpeg", 3, 6, "192k", 10485760L);
-		service = new HlsTranscodeService(trackRepository, storageService, ffmpegCommandRunner,
+		service = new HlsTranscodeServiceImpl(trackRepository, storageService, ffmpegCommandRunner,
 				properties, transactionManager);
 		trackId = UUID.randomUUID();
 		track = newTrack(TrackStatus.PENDING);
@@ -260,7 +260,7 @@ class HlsTranscodeServiceTest {
 	void keepsReadyResultWhenCleanupFails() throws IOException {
 		stubTrackFound();
 		when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.success(""));
-		HlsTranscodeService spied = org.mockito.Mockito.spy(service);
+		HlsTranscodeServiceImpl spied = org.mockito.Mockito.spy(service);
 		doThrow(new IOException("locked")).when(spied).deleteWorkDir(any());
 
 		spied.process(dto);
@@ -273,7 +273,7 @@ class HlsTranscodeServiceTest {
 	void keepsOriginalResultWhenCleanupFails() throws IOException {
 		stubTrackFound();
 		when(ffmpegCommandRunner.transcodeToHls(any(), any())).thenReturn(FfmpegResult.failed(1, "bad input"));
-		HlsTranscodeService spied = org.mockito.Mockito.spy(service);
+		HlsTranscodeServiceImpl spied = org.mockito.Mockito.spy(service);
 		doThrow(new IOException("locked")).when(spied).deleteWorkDir(any());
 
 		spied.process(dto);
@@ -319,13 +319,13 @@ class HlsTranscodeServiceTest {
 	}
 
 	@Test
-	@DisplayName("process는 @Async(transcodeExecutor)이고 클래스는 TranscodeProcessor를 구현한다")
+	@DisplayName("process는 @Async(transcodeExecutor)이고 클래스는 HlsTranscodeService를 구현한다")
 	void declaresAsyncOnProcess() throws NoSuchMethodException, IOException {
-		Async async = HlsTranscodeService.class
+		Async async = HlsTranscodeServiceImpl.class
 				.getMethod("process", TranscodeEventDto.class).getAnnotation(Async.class);
 
 		assertThat(async).isNotNull();
 		assertThat(async.value()).isEqualTo(AsyncConfig.TRANSCODE_EXECUTOR);
-		assertThat(TranscodeProcessor.class).isAssignableFrom(HlsTranscodeService.class);
+		assertThat(HlsTranscodeService.class).isAssignableFrom(HlsTranscodeServiceImpl.class);
 	}
 }

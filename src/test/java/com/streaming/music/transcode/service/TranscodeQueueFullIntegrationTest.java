@@ -60,7 +60,7 @@ class TranscodeQueueFullIntegrationTest {
 	}
 
 	@MockitoBean
-	private TranscodeProcessor processor;
+	private HlsTranscodeService processor;
 
 	@Autowired
 	private TransactionTemplate transactionTemplate;

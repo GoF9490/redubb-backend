@@ -16,14 +16,14 @@ import org.springframework.core.task.TaskRejectedException;
 
 class TranscodeEventRelayTest {
 
-	private TranscodeProcessor processor;
+	private HlsTranscodeService processor;
 	private TranscodeRejectionHandler rejectionHandler;
 	private TranscodeEventRelay relay;
 	private TranscodeEventDto dto;
 
 	@BeforeEach
 	void setUp() {
-		processor = mock(TranscodeProcessor.class);
+		processor = mock(HlsTranscodeService.class);
 		rejectionHandler = mock(TranscodeRejectionHandler.class);
 		relay = new TranscodeEventRelay(processor, rejectionHandler);
 		dto = new TranscodeEventDto(UUID.randomUUID(), "original/a.mp3");
