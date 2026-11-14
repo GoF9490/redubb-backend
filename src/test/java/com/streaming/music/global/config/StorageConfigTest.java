@@ -3,7 +3,7 @@ package com.streaming.music.global.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.streaming.music.global.properties.StorageProperties;
-import com.streaming.music.service.MinioStorageService;
+import com.streaming.music.storage.service.MinioStorageService;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

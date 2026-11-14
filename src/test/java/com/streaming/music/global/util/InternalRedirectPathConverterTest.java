@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.streaming.music.global.config.StorageConfig;
-import com.streaming.music.service.MinioStorageService;
+import com.streaming.music.storage.service.MinioStorageService;
 import com.streaming.music.global.properties.StorageProperties;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.DisplayName;

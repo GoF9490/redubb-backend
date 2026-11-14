@@ -1,5 +1,6 @@
 package com.streaming.music.service;
 
+import com.streaming.music.transcode.service.TranscodeIntegrationTestBase;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;

@@ -1,5 +1,7 @@
 package com.streaming.music.service;
 
+import com.streaming.music.transcode.service.TranscodeTaskDispatcher;
+import com.streaming.music.storage.service.StorageService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,7 +20,7 @@ import static org.mockito.Mockito.when;
 import com.streaming.music.playback.service.PlaybackLogService;
 import com.streaming.music.global.properties.AudioProperties;
 import com.streaming.music.global.properties.StorageProperties;
-import com.streaming.music.dto.event.TranscodeEventDto;
+import com.streaming.music.transcode.dto.TranscodeEventDto;
 import com.streaming.music.dto.request.TrackUploadRequest;
 import com.streaming.music.entity.Track;
 import com.streaming.music.entity.TrackStatus;

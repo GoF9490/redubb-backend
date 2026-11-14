@@ -1,5 +1,7 @@
 package com.streaming.music.service;
 
+import com.streaming.music.transcode.service.TranscodeTaskDispatcher;
+import com.streaming.music.storage.service.StorageService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
