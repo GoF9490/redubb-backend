@@ -29,7 +29,7 @@
 - 환경: python 없음(grep/awk/sed 사용), `core.autocrlf=true`로 LF→CRLF 경고 출력(내용 영향 없음, 작업 트리·인덱스는 LF).
 
 ## 다음 작업
-- R2-4 → Phase 3 → Phase 4 → R5-1 (ROADMAP 끝까지 자율 진행)
+- Phase 3: R3-1 → R3-2 → R3-3, Phase 4(R4-1 → R4-2), R5-1 (ROADMAP 끝까지 자율 진행)
 
 ## 작업 원칙 (사용자 지시)
 - 기존 테스트 코드는 ROADMAP 후반(R4-2)에서 삭제된다. 그 전까지는 수정·이동한 코드에 대해 **기존 테스트를 직접 실행하며 검토**한다(에이전트 보고에 의존하지 않고 메인이 `./gradlew build --rerun-tasks` 또는 해당 테스트를 재실행해 통과와 테스트 수를 확인). 삭제 전까지가 회귀 안전망이다.
