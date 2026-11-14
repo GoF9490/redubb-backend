@@ -4,7 +4,7 @@ import com.streaming.music.transcode.dto.TranscodeEventDto;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 /**
  * {@link ApplicationEventPublisher} 기반 변환 이벤트 발행 구현체.
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
  * 일반 {@code @EventListener}는 커밋 전 실행 경합 때문에 사용하지 않는다.
  * (이번 태스크에서는 리스너를 만들지 않는다.)
  */
-@Service
+@Component
 @RequiredArgsConstructor
 public class ApplicationEventTranscodeTaskDispatcher implements TranscodeTaskDispatcher {
 

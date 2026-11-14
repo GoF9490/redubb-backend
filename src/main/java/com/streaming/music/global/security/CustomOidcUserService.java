@@ -16,7 +16,7 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 /**
  * Google OIDC 로그인 사용자 서비스 (PRD-05 §6.1).
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
  * 로그와 예외 메시지에는 속성 값·토큰을 남기지 않는다.
  */
 @Slf4j
-@Service
+@Component
 public class CustomOidcUserService implements OAuth2UserService<OidcUserRequest, OidcUser> {
 
 	static final String ERROR_INVALID_USER_INFO = "invalid_user_info";

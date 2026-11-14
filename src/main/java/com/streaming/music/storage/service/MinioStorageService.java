@@ -23,14 +23,14 @@ import java.util.Locale;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 /**
  * MinIO SDK 기반 {@link StorageService} 구현.
  * 체크 예외(MinioException, IOException, GeneralSecurityException)만 StorageException으로 변환하고,
  * RuntimeException(프로그래밍 오류)은 그대로 전파한다. 로그에는 operation/key만 남기고 시크릿·서명 URL은 남기지 않는다.
  */
-@Service
+@Component
 public class MinioStorageService implements StorageService {
 
 	private static final Logger log = LoggerFactory.getLogger(MinioStorageService.class);
