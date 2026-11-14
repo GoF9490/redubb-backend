@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 12/16 Tasks 완료
+**📊 진행 상황**: 13/16 Tasks 완료
 
 ## 진행 보드
 
@@ -24,7 +24,7 @@
 - Phase 3 — 설정값 외부화
   - [x] R3-1 `AsyncProperties`·`TrackProperties` 도입
   - [x] R3-2 `JwtProperties`·`CorsProperties` 확장
-  - [ ] R3-3 `AudioProperties` 확장
+  - [x] R3-3 `AudioProperties` 확장
 - Phase 4 — 테스트 범위 정리
   - [ ] R4-1 허용 범위 단위 테스트 보강
   - [ ] R4-2 비허용 테스트 삭제
@@ -220,7 +220,7 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
   - [구현] 빈 목록·`null` 처리는 기존 `PropertyUtils.normalizeList`를 재사용
   - [검토] 보안 민감 태스크. 테스트를 `--rerun-tasks`로 2~3회 반복 실행
 
-### [ ] R3-3 `AudioProperties` 확장
+### [x] R3-3 `AudioProperties` 확장
 - **목표:** `app.audio`에 `hls-audio-sample-rate`, `hls-audio-channels`, `error-message-max-length`, `recovery-stale-threshold-multiplier`, `allowed-audio-mime-types`, `allowed-artwork-mime-types`를 추가하고 코드의 고정값을 대체한다.
   - `FfmpegCommandBuilder`의 `"-ar", "44100", "-ac", "2"`
   - `Track.ERROR_MESSAGE_MAX_LENGTH` / `FfmpegResult.MAX_SUMMARY_LENGTH`(500)
@@ -228,9 +228,9 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
   - `AudioMetadataValidator`의 허용 MIME 목록(`MIME_TO_EXTENSION` 키, `ALLOWED_ARTWORK_MIMES`)
 - **선행:** R2-4
 - **완료 조건:** (테스트: **`HlsTranscodeServiceImplTest`·`TrackTest` 갱신 필수**)
-  - [ ] `application.yaml` `app.audio`가 PRD-05 §4.2와 일치
-  - [ ] 오류 메시지 자르기 길이가 설정값을 따르는지 단위 테스트로 확인
-  - [ ] `./gradlew build` 통과
+  - [x] `application.yaml` `app.audio`가 PRD-05 §4.2와 일치
+  - [x] 오류 메시지 자르기 길이가 설정값을 따르는지 단위 테스트로 확인
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [계획] 엔티티(`Track`)는 프로퍼티를 주입받을 수 없다. 자르기를 호출자(서비스)로 옮기거나 길이를 인자로 받는 방식 중 택일. `@Column(length = 500)`은 DDL 계약(PRD-07)이므로 상수로 남기고, 설정값이 컬럼 길이를 넘지 않도록 막는다
   - [구현] MIME → 확장자 매핑은 코드에 남기고, 허용 목록만 yaml로 옮긴다. yaml 목록에 매핑 없는 MIME이 있으면 기동 시 실패시키는 검증을 검토

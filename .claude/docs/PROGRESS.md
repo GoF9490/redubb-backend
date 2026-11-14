@@ -6,7 +6,7 @@
 **📅 최종 업데이트**: 2026-11-14
 
 ## 현재 작업
-- Phase 3 진행 중(12/16). R3-2 완료, R3-3(`AudioProperties` 확장) PLAN 단계 진행. 사용자 지시 범위: ROADMAP 전체 자율 진행.
+- Phase 3 완료(13/16). Phase 4 R4-1(허용 범위 단위 테스트 보강) PLAN 단계 진행. 사용자 지시 범위: ROADMAP 전체 자율 진행.
 
 ## 완료한 작업
 - R0-1: `@Primary`(ab80674)는 이미 커밋돼 있어 추가 커밋 없음. 기준선 측정 — 테스트 클래스 57, 테스트 450, 실패·스킵 0. (c679e3f)
@@ -23,17 +23,19 @@
 - R2-4: `TranscodeProcessor`를 `HlsTranscodeService` 인터페이스로 통합, 구현은 `HlsTranscodeServiceImpl`. `@Async("transcodeExecutor")`는 Impl의 `process`에 유지(원래 `@Transactional` 없음), `FFMPEG_TIMEOUT_MESSAGE`는 Impl 유지. 실제 주입받는 main 클래스는 `TranscodeEventRelay` 하나뿐(ROADMAP 메모 정정). `HlsTranscodeServiceImplTest` 18건 유지. 에이전트 2회 + 메인 1회 `--rerun-tasks`로 비동기·큐 포화 통합 테스트 안정 확인(451·실패 0).
 - R3-1: `AsyncProperties`·`TrackProperties`(record) 추가, `application.yaml`에 `app.async`·`app.track`(PRD §4.2 값 1/2/50, 20/100). `AsyncConfig` 풀 크기 상수·`TrackServiceImpl.MAX_PAGE_SIZE` 제거. `getTracks`의 `size`를 `Integer`로 바꿔 미지정 시 서비스가 기본값 적용(컨트롤러 `defaultValue` 제거, API 응답 동일). **사용자에게 알릴 결정**: 이로 인해 `TrackControllerTest`(5곳)·`AuthControllerTest`(1곳)의 `eq(20)`/`anyInt()` 매처를 `isNull()`/`any()`로 수정(단언 의미 불변, 승인 범위 6곳). `application-test.yaml`에 풀 크기 고정. `TrackServiceImplTest` +4(기준선 455). 메인 재검증 455·실패 0, 포화 통합 테스트 에이전트 2회 안정.
 - R3-2: `JwtProperties`(`authorizationCookieMaxAgeSeconds`=180, `allowedFailureErrorCodes` 7개)·`CorsProperties`(`allowedMethods`·`allowedHeaders`) 확장, 값은 기존 코드와 PRD §4.2가 동일. 쿠키 저장소·실패 핸들러 생성자에 `JwtProperties` 추가(`SecurityConfig` 갱신), 구 상수·`CorsConfig` 고정 목록 제거. 테스트는 생성자 인자만 수정(단언 불변). 메인이 `--rerun-tasks` 3회 반복 455·실패 0 확인, 에이전트도 3회.
+- R3-3: `AudioProperties`에 `hlsAudioSampleRate`(44100)·`hlsAudioChannels`(2)·`errorMessageMaxLength`(500)·`recoveryStaleThresholdMultiplier`(2)·`allowedAudioMimeTypes`(7)·`allowedArtworkMimeTypes`(2) 추가(값은 기존 코드와 PRD §4.2 동일). 오류 메시지 절단 책임을 `HlsTranscodeServiceImpl.recordFailure`로 이전, `Track.ERROR_MESSAGE_MAX_LENGTH`는 public DDL 상한(500) 유지, 설정값 > 500이면 서비스 생성자에서 기동 실패. `AudioMetadataValidator`는 목록이 비었거나 매핑 없는 MIME이면 기동 실패(MIME→확장자 매핑은 코드 유지). 신규 테스트 `HlsTranscodeServiceImplTest` +3, `TrackTest` +1(기준선 459). 기존 테스트는 생성자 인자만 수정. 메인 재검증 459·실패 0.
 
 ## 검토 필요 / 보고 사항
 - **PRD §4.2에 없어 옮기지 않은 상수(R3-1 보고, R3-3 이후 최종 정리 때 재확인)**: `TrackController` `page` `defaultValue="0"`, `TrackServiceImpl`의 `TITLE/ARTIST/ALBUM/KEYWORD/FILENAME_MAX_LENGTH`(일부 DDL 계약)·`UNKNOWN_FILENAME`·아트워크/원본 키 형식, `AsyncConfig.THREAD_NAME_PREFIX`, `ContentDispositionBuilder.FILENAME_MAX_LENGTH`, `InternalRedirectPathConverter.INTERNAL_PREFIX`, `HlsTranscodeServiceImpl`의 `INPUT_FILE_PREFIX`/`HLS_DIR_NAME`/`HLS_KEY_PREFIX`/`FFMPEG_TIMEOUT_MESSAGE`(포맷·프로토콜 상수).
+- **R3-3에서 옮기지 않은 상수(PRD §4.2에 없음)**: `MIME_TO_EXTENSION` 매핑, `AudioMetadataValidator.FALLBACK_TITLE/ARTIST`·`MIN_DURATION_SECONDS`, `Track.DEFAULT_ARTIST`, `FfmpegCommandBuilder`의 `PLAYLIST_FILE_NAME`·`SEGMENT_FILE_PATTERN`·코덱/HLS 인자, `ProcessFfmpegCommandRunner`의 `KILL_WAIT_MILLIS`(5000)·`READER_JOIN_MILLIS`(5000)·`START_FAILED_SUMMARY`·`INTERRUPTED_SUMMARY`, `TranscodeRecoveryRunner.INTERRUPTED_MESSAGE`, `TranscodeRejectionHandler.QUEUE_FULL_MESSAGE`.
 - **사용자 결정 필요(R3-2 보고)**: `CorsConfig.PREFLIGHT_MAX_AGE_SECONDS`(3600) 외부화를 원하면 PRD §4.2에 `app.cors.max-age-seconds`를 추가하는 결정이 먼저 필요. 그 외 `HttpCookieOAuth2AuthorizationRequestRepository.MAX_COOKIE_VALUE_LENGTH`(3072)·`MAX_REDIRECT_URI_LENGTH`(512)·`CorsConfig.ALLOWED_SCHEMES`·`OAuth2AuthenticationFailureHandler.ERROR_LOGIN_FAILED`는 프로토콜·안전 한도 상수로 코드 유지.
 - `CorsConfigTest`는 빈을 직접 생성해 `@Primary`를 증명하지 못함. 실질 증거는 `CorsEnabledTest`·`SecurityConfigTest`. 제거 시 `NoUniqueBeanDefinitionException` 재현은 하지 않음.
-- 테스트 기준선은 R3-1 이후 455(R2-2 +1, R3-1 +4). R2-3 합치기 전 TrackService 계열 합계 52(TrackServiceTest 24, Play 7, Download 10, Query 11). 재집계는 `build/test-results/test/*.xml`.
+- 테스트 기준선은 R3-3 이후 459(R2-2 +1, R3-1 +4, R3-3 +4). R2-3 합치기 전 TrackService 계열 합계 52(TrackServiceTest 24, Play 7, Download 10, Query 11). 재집계는 `build/test-results/test/*.xml`.
 - `.editorconfig` 없음 → 탭 설정 고정이 필요하면 별도 판단(범위 밖).
 - 환경: python 없음(grep/awk/sed 사용), `core.autocrlf=true`로 LF→CRLF 경고 출력(내용 영향 없음, 작업 트리·인덱스는 LF).
 
 ## 다음 작업
-- Phase 3: R3-3, Phase 4(R4-1 → R4-2), R5-1 (ROADMAP 끝까지 자율 진행)
+- Phase 4: R4-1 → R4-2, Phase 5: R5-1 (ROADMAP 끝까지 자율 진행)
 
 ## 작업 원칙 (사용자 지시)
 - 기존 테스트 코드는 ROADMAP 후반(R4-2)에서 삭제된다. 그 전까지는 수정·이동한 코드에 대해 **기존 테스트를 직접 실행하며 검토**한다(에이전트 보고에 의존하지 않고 메인이 `./gradlew build --rerun-tasks` 또는 해당 테스트를 재실행해 통과와 테스트 수를 확인). 삭제 전까지가 회귀 안전망이다.
