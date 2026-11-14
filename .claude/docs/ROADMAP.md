@@ -4,7 +4,7 @@
 > 범위: **동작 변경 없는 구조 리팩터링**. API 계약·DB 스키마·응답 형식은 바꾸지 않는다. 범위 밖 요구사항이나 PRD 충돌을 발견하면 구현하지 말고 보고한다.
 
 **📅 최종 업데이트**: 2026-11-14
-**📊 진행 상황**: 7/16 Tasks 완료
+**📊 진행 상황**: 8/16 Tasks 완료
 
 ## 진행 보드
 
@@ -18,7 +18,7 @@
   - [x] R1-4 `track` 도메인 이동
 - Phase 2 — Service 인터페이스/Impl 분리
   - [x] R2-1 도메인 서비스가 아닌 클래스의 `@Component` 전환
-  - [ ] R2-2 `UserService`·`PlaybackLogService` 분리
+  - [x] R2-2 `UserService`·`PlaybackLogService` 분리
   - [ ] R2-3 `TrackService` 분리 및 테스트 통합
   - [ ] R2-4 `HlsTranscodeService` 분리 (`TranscodeProcessor` 통합)
 - Phase 3 — 설정값 외부화
@@ -143,14 +143,14 @@ R0-1 → R0-2 → Phase 1(R1-1 → R1-2 → R1-3 → R1-4) → Phase 2(R2-1 → 
 - **주의:**
   - [검토] `@Component`로 바꾼 클래스의 기존 테스트(`CustomOidcUserServiceTest`, `MinioStorageServiceTest` 등)는 R4-2에서 삭제한다. 지금은 유지
 
-### [ ] R2-2 `UserService`·`PlaybackLogService` 분리
+### [x] R2-2 `UserService`·`PlaybackLogService` 분리
 - **목표:** 두 서비스를 인터페이스 + `XxxServiceImpl`로 나누고, 주입받는 쪽은 인터페이스 타입을 쓰게 한다. 테스트는 `UserServiceImplTest`, `PlaybackLogServiceImplTest`로 이름을 바꾼다.
 - **선행:** R2-1
 - **완료 조건:** (테스트: **단위 테스트 필수**)
-  - [ ] `UserServiceImplTest`: PRD-05 §8 시나리오(신규 저장, 기존 회원 갱신) 포함
-  - [ ] `PlaybackLogServiceImplTest`: §8 시나리오(ActionType별 저장, 비로그인 `user=null`, 저장 실패 시 예외 삼킴) 포함
-  - [ ] 두 테스트 모두 Spring 컨텍스트 없이 `@ExtendWith(MockitoExtension.class)`
-  - [ ] `./gradlew build` 통과
+  - [x] `UserServiceImplTest`: PRD-05 §8 시나리오(신규 저장, 기존 회원 갱신) 포함
+  - [x] `PlaybackLogServiceImplTest`: §8 시나리오(ActionType별 저장, 비로그인 `user=null`, 저장 실패 시 예외 삼킴) 포함
+  - [x] 두 테스트 모두 Spring 컨텍스트 없이 `@ExtendWith(MockitoExtension.class)`
+  - [x] `./gradlew build` 통과
 - **주의:**
   - [계획] 인터페이스에는 외부에서 호출하는 public 메서드만 둔다. 내부 헬퍼는 Impl의 private으로 남긴다
   - [구현] `@Transactional`은 Impl 메서드에 둔다(인터페이스에 두지 않음)
